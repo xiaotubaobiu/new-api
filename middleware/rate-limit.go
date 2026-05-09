@@ -108,6 +108,13 @@ func CriticalRateLimit() func(c *gin.Context) {
 	return defNext
 }
 
+func AuthRateLimit() func(c *gin.Context) {
+	if common.AuthRateLimitEnable {
+		return rateLimitFactory(common.AuthRateLimitNum, common.AuthRateLimitDuration, "AU")
+	}
+	return defNext
+}
+
 func DownloadRateLimit() func(c *gin.Context) {
 	return rateLimitFactory(common.DownloadRateLimitNum, common.DownloadRateLimitDuration, "DW")
 }

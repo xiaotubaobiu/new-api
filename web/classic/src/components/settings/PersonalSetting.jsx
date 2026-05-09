@@ -46,13 +46,7 @@ import WeChatBindModal from './personal/modals/WeChatBindModal';
 import AccountDeleteModal from './personal/modals/AccountDeleteModal';
 import SecureVerificationModal from '../common/modals/SecureVerificationModal';
 import { useSecureVerification } from '../../hooks/common/useSecureVerification';
-
-const AUTHENTIK_PASSWORD_CHANGE_RETURN_URL =
-  'https://matrix.000328.xyz:2053/setting/personal';
-
-const AUTHENTIK_PASSWORD_CHANGE_URL = `https://auth.000328.xyz:2053/if/flow/default-password-change/?next=${encodeURIComponent(
-  AUTHENTIK_PASSWORD_CHANGE_RETURN_URL,
-)}`;
+import { buildAuthentikPasswordChangeUrl } from '../../helpers/authentikPasswordChange';
 
 const PersonalSetting = () => {
   const [userState, userDispatch] = useContext(UserContext);
@@ -414,7 +408,7 @@ const PersonalSetting = () => {
   };
 
   const changePassword = () => {
-    window.location.href = AUTHENTIK_PASSWORD_CHANGE_URL;
+    window.location.assign(buildAuthentikPasswordChangeUrl());
   };
 
   const sendVerificationCode = async () => {
