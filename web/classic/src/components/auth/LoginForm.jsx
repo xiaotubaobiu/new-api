@@ -34,6 +34,7 @@ import {
   onGitHubOAuthClicked,
   onDiscordOAuthClicked,
   onOIDCClicked,
+  loginPageOIDCOptions,
   onLinuxDOOAuthClicked,
   onCustomOAuthClicked,
   prepareCredentialRequestOptions,
@@ -354,8 +355,12 @@ const LoginForm = () => {
 
   // 包装的OIDC登录点击处理
   const handleOIDCClick = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (
+      !status.oidc_enabled ||
+      !status.oidc_authorization_endpoint ||
+      !status.oidc_client_id
+    ) {
+      showInfo(t('OIDC 未启用'));
       return;
     }
     setOidcLoading(true);
@@ -364,7 +369,7 @@ const LoginForm = () => {
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        loginPageOIDCOptions,
       );
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
@@ -498,6 +503,47 @@ const LoginForm = () => {
   const handleBackToLogin = () => {
     setShowTwoFA(false);
     setInputs({ username: '', password: '', wechat_verification_code: '' });
+  };
+
+  const renderOIDCOnlyEntry = () => {
+    const oidcButtonDisabled =
+      !status.oidc_enabled ||
+      !status.oidc_authorization_endpoint ||
+      !status.oidc_client_id;
+
+    return (
+      <div className='flex flex-col items-center'>
+        <div className='w-full max-w-md'>
+          <div className='flex items-center justify-center mb-6 gap-2'>
+            <img src={logo} alt='Logo' className='h-10 rounded-full' />
+            <Title heading={3} className='!text-gray-800'>
+              {systemName}
+            </Title>
+          </div>
+
+          <Card className='border-0 !rounded-2xl overflow-hidden'>
+            <div className='flex justify-center pt-6 pb-2'>
+              <Title heading={3} className='text-gray-800 dark:text-gray-200'>
+                {t('登 录')}
+              </Title>
+            </div>
+            <div className='px-2 py-8'>
+              <Button
+                theme='outline'
+                className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
+                type='tertiary'
+                icon={<OIDCIcon style={{ color: '#1877F2' }} />}
+                onClick={handleOIDCClick}
+                loading={oidcLoading}
+                disabled={oidcButtonDisabled}
+              >
+                <span className='ml-3'>{t('使用 OIDC 继续')}</span>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
   };
 
   const renderOAuthOptions = () => {
@@ -957,25 +1003,7 @@ const LoginForm = () => {
         className='blur-ball blur-ball-teal'
         style={{ top: '50%', left: '-120px' }}
       />
-      <div className='w-full max-w-sm mt-[60px]'>
-        {showEmailLogin ||
-        !hasOAuthLoginOptions
-          ? renderEmailLoginForm()
-          : renderOAuthOptions()}
-        {renderWeChatLoginModal()}
-        {render2FAModal()}
-
-        {turnstileEnabled && (
-          <div className='flex justify-center mt-6'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
-            />
-          </div>
-        )}
-      </div>
+      <div className='w-full max-w-sm mt-[60px]'>{renderOIDCOnlyEntry()}</div>
     </div>
   );
 };

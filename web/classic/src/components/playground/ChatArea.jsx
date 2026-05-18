@@ -37,6 +37,8 @@ const ChatArea = ({
   onStopGenerator,
   onClearMessages,
   onToggleDebugPanel,
+  lobehubChatUrl,
+  onOpenLobeHub,
   renderCustomChatContent,
   renderChatBoxAction,
 }) => {
@@ -78,6 +80,17 @@ const ChatArea = ({
               </div>
             </div>
             <div className='flex items-center gap-2'>
+              {lobehubChatUrl && (
+                <Button
+                  onClick={onOpenLobeHub}
+                  theme='borderless'
+                  type='primary'
+                  size='small'
+                  className='!rounded-lg !text-white/80 hover:!text-white hover:!bg-white/10'
+                >
+                  {t('用 LobeHub 打开')}
+                </Button>
+              )}
               <Button
                 icon={showDebugPanel ? <EyeOff size={14} /> : <Eye size={14} />}
                 onClick={onToggleDebugPanel}

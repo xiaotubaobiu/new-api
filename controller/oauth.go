@@ -3,12 +3,15 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -38,6 +41,48 @@ func GenerateOAuthCode(c *gin.Context) {
 		"message": "",
 		"data":    state,
 	})
+}
+
+func LaunchNewAPIOIDC(c *gin.Context) {
+	session := sessions.Default(c)
+	if session.Get("id") != nil {
+		c.Redirect(http.StatusFound, "/console")
+		return
+	}
+
+	settings := system_setting.GetOIDCSettings()
+	authorizationEndpoint := strings.TrimSpace(settings.AuthorizationEndpoint)
+	clientID := strings.TrimSpace(settings.ClientId)
+	serverAddress := strings.TrimRight(strings.TrimSpace(system_setting.ServerAddress), "/")
+	if authorizationEndpoint == "" || clientID == "" || serverAddress == "" {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	authorizationURL, err := url.Parse(authorizationEndpoint)
+	if err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	state := common.GetRandomString(12)
+	if affCode := c.Query("aff"); affCode != "" {
+		session.Set("aff", affCode)
+	}
+	session.Set("oauth_state", state)
+	if err := session.Save(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	query := authorizationURL.Query()
+	query.Set("client_id", clientID)
+	query.Set("redirect_uri", serverAddress+"/oauth/oidc")
+	query.Set("response_type", "code")
+	query.Set("scope", "openid profile email")
+	query.Set("state", state)
+	authorizationURL.RawQuery = query.Encode()
+	c.Redirect(http.StatusFound, authorizationURL.String())
 }
 
 // HandleOAuth handles OAuth callback for all standard OAuth providers
@@ -124,6 +169,13 @@ func HandleOAuth(c *gin.Context) {
 	}
 
 	// 9. Setup login
+	if providerName == "oidc" {
+		setupLoginWithMetadata(user, c, &loginSessionMetadata{
+			AuthProvider: providerName,
+			OIDCIDToken:  token.IDToken,
+		})
+		return
+	}
 	setupLogin(user, c)
 }
 
@@ -233,7 +285,8 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	// User doesn't exist, create new user if registration is enabled
-	if !common.RegisterEnabled {
+	// OIDC auto-provision is independent of the built-in password registration toggle
+	if !common.RegisterEnabled && provider.GetName() != "OIDC" {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
 

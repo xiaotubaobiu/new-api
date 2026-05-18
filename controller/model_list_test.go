@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
@@ -152,6 +153,53 @@ func pricingByModelName(pricings []model.Pricing) map[string]model.Pricing {
 		byName[pricing.ModelName] = pricing
 	}
 	return byName
+}
+
+func TestGetStatusIncludesLobeHubChatURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	common.OptionMapRWMutex.Lock()
+	originalOptionMap := common.OptionMap
+	common.OptionMap = map[string]string{
+		"LobeHubChatUrl":      "https://lobehub.000328.xyz",
+		"HeaderNavModules":    "",
+		"SidebarModulesAdmin": "",
+	}
+	common.OptionMapRWMutex.Unlock()
+
+	originalServerAddress := system_setting.ServerAddress
+	originalSetup := constant.Setup
+
+	t.Cleanup(func() {
+		common.OptionMapRWMutex.Lock()
+		common.OptionMap = originalOptionMap
+		common.OptionMapRWMutex.Unlock()
+		system_setting.ServerAddress = originalServerAddress
+		constant.Setup = originalSetup
+	})
+
+	system_setting.ServerAddress = "https://matrix.000328.xyz:3000"
+	constant.Setup = false
+	operation_setting.DemoSiteEnabled = false
+	operation_setting.SelfUseModeEnabled = false
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/status", nil)
+
+	GetStatus(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			LobeHubChatURL string `json:"lobehub_chat_url"`
+		} `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.True(t, payload.Success)
+	require.Equal(t, "https://lobehub.000328.xyz", payload.Data.LobeHubChatURL)
 }
 
 func TestListModelsIncludesTieredBillingModel(t *testing.T) {

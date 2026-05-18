@@ -132,6 +132,7 @@ var defaultModelRatio = map[string]float64{
 	"text-moderation-latest":                    0.1,
 	"claude-3-haiku-20240307":                   0.125, // $0.25 / 1M tokens
 	"claude-3-5-haiku-20241022":                 0.5,   // $1 / 1M tokens
+	"claude-haiku-4-5":                           0.5,   // $1 / 1M tokens
 	"claude-haiku-4-5-20251001":                 0.5,   // $1 / 1M tokens
 	"claude-3-sonnet-20240229":                  1.5,   // $3 / 1M tokens
 	"claude-3-5-sonnet-20240620":                1.5,
@@ -139,8 +140,10 @@ var defaultModelRatio = map[string]float64{
 	"claude-3-7-sonnet-20250219":                1.5,
 	"claude-3-7-sonnet-20250219-thinking":       1.5,
 	"claude-sonnet-4-20250514":                  1.5,
+	"claude-sonnet-4-5":                         1.5,
 	"claude-sonnet-4-5-20250929":                1.5,
 	"claude-opus-4-5-20251101":                  2.5,
+	"claude-opus-4-5":                           2.5,
 	"claude-opus-4-6":                           2.5,
 	"claude-opus-4-6-max":                       2.5,
 	"claude-opus-4-6-high":                      2.5,
@@ -336,7 +339,10 @@ var defaultCompletionRatio = map[string]float64{
 	"gpt-4-gizmo-*":  2,
 	"gpt-4o-gizmo-*": 3,
 	"gpt-4-all":      2,
-	"gpt-image-1":    8,
+	"gpt-image-1":       8,
+	"claude-haiku-4-5":  5,
+	"claude-opus-4-5":   5,
+	"claude-sonnet-4-5": 5,
 }
 
 // InitRatioSettings initializes all model related settings maps
@@ -402,6 +408,10 @@ func handleThinkingBudgetModel(name, prefix, wildcard string) string {
 
 func GetModelRatio(name string) (float64, bool, string) {
 	name = FormatMatchingModelName(name)
+
+	if strings.HasPrefix(name, "gemini-") {
+		return 0, true, name
+	}
 
 	ratio, ok := modelRatioMap.Get(name)
 	if !ok {

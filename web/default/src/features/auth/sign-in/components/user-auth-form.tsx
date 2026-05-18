@@ -98,6 +98,9 @@ export function UserAuthForm({
     !passkeySupported ||
     (requiresLegalConsent && !agreedToLegal)
   const hasWeChatLogin = Boolean(status?.wechat_login)
+  const passwordLoginEnabled = Boolean(
+    status?.password_login_enabled ?? status?.data?.password_login_enabled ?? true
+  )
 
   useEffect(() => {
     if (requiresLegalConsent) {
@@ -282,6 +285,7 @@ export function UserAuthForm({
         className={cn('grid gap-4', className)}
         {...props}
       >
+        {passwordLoginEnabled && (<>
         {/* Username Field */}
         <FormField
           control={form.control}
@@ -340,6 +344,7 @@ export function UserAuthForm({
             />
           </div>
         )}
+        </>)}
 
         <LegalConsent
           status={status}

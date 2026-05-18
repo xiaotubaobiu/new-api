@@ -101,6 +101,7 @@ const SystemSetting = () => {
     LinuxDOClientSecret: '',
     LinuxDOMinimumTrustLevel: '',
     ServerAddress: '',
+    LobeHubChatUrl: '',
     // SSRF防护配置
     'fetch_setting.enable_ssrf_protection': true,
     'fetch_setting.allow_private_ip': '',
@@ -316,7 +317,11 @@ const SystemSetting = () => {
 
   const submitServerAddress = async () => {
     let ServerAddress = removeTrailingSlash(inputs.ServerAddress);
-    await updateOptions([{ key: 'ServerAddress', value: ServerAddress }]);
+    let LobeHubChatUrl = removeTrailingSlash(inputs.LobeHubChatUrl);
+    await updateOptions([
+      { key: 'ServerAddress', value: ServerAddress },
+      { key: 'LobeHubChatUrl', value: LobeHubChatUrl },
+    ]);
   };
 
   const submitSMTP = async () => {
@@ -725,6 +730,16 @@ const SystemSetting = () => {
                         placeholder='https://yourdomain.com'
                         extraText={t(
                           '该服务器地址将影响支付回调地址以及默认首页展示的地址，请确保正确配置',
+                        )}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                      <Form.Input
+                        field='LobeHubChatUrl'
+                        label={t('LobeHub 聊天入口')}
+                        placeholder='https://lobehub.000328.xyz'
+                        extraText={t(
+                          '配置后，聊天页面会显示“用 LobeHub 打开”按钮；不要在这里填写 API Key 或用户 Token',
                         )}
                       />
                     </Col>

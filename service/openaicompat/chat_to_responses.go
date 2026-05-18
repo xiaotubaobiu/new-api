@@ -30,6 +30,16 @@ func normalizeChatImageURLToString(v any) any {
 			return vv.Url
 		}
 		return v
+	case dto.MessageAudioUrl:
+		if vv.Url != "" {
+			return vv.Url
+		}
+		return v
+	case *dto.MessageAudioUrl:
+		if vv != nil && vv.Url != "" {
+			return vv.Url
+		}
+		return v
 	default:
 		return v
 	}
@@ -232,6 +242,11 @@ func ChatCompletionsRequestToResponsesRequest(req *dto.GeneralOpenAIRequest) (*d
 				contentParts = append(contentParts, map[string]any{
 					"type":        "input_audio",
 					"input_audio": part.InputAudio,
+				})
+			case dto.ContentTypeAudioURL:
+				contentParts = append(contentParts, map[string]any{
+					"type":      "input_audio",
+					"audio_url": normalizeChatImageURLToString(part.AudioUrl),
 				})
 			case dto.ContentTypeFile:
 				contentParts = append(contentParts, map[string]any{

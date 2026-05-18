@@ -25,6 +25,7 @@ import {
   showError,
   showInfo,
   showSuccess,
+  getLogoutRedirectUrl,
   setStatusData,
   prepareCredentialCreationOptions,
   buildRegistrationResult,
@@ -44,9 +45,9 @@ import CheckinCalendar from './personal/cards/CheckinCalendar';
 import EmailBindModal from './personal/modals/EmailBindModal';
 import WeChatBindModal from './personal/modals/WeChatBindModal';
 import AccountDeleteModal from './personal/modals/AccountDeleteModal';
+import ChangePasswordModal from './personal/modals/ChangePasswordModal';
 import SecureVerificationModal from '../common/modals/SecureVerificationModal';
 import { useSecureVerification } from '../../hooks/common/useSecureVerification';
-import { buildAuthentikPasswordChangeUrl } from '../../helpers/authentikPasswordChange';
 
 const PersonalSetting = () => {
   const [userState, userDispatch] = useContext(UserContext);
@@ -58,8 +59,12 @@ const PersonalSetting = () => {
     email_verification_code: '',
     email: '',
     self_account_deletion_confirmation: '',
+    original_password: '',
+    set_new_password: '',
+    set_new_password_confirmation: '',
   });
   const [status, setStatus] = useState({});
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showWeChatBindModal, setShowWeChatBindModal] = useState(false);
   const [showEmailBindModal, setShowEmailBindModal] = useState(false);
   const [showAccountDeleteModal, setShowAccountDeleteModal] = useState(false);
@@ -384,9 +389,14 @@ const PersonalSetting = () => {
 
     if (success) {
       showSuccess(t('账户已删除！'));
-      await API.get('/api/user/logout');
+      const logoutRes = await API.get('/api/user/logout');
+      const redirectTo = getLogoutRedirectUrl(logoutRes.data);
       userDispatch({ type: 'logout' });
       localStorage.removeItem('user');
+      if (redirectTo) {
+        window.location.assign(redirectTo);
+        return;
+      }
       navigate('/login');
     } else {
       showError(message);
@@ -407,8 +417,35 @@ const PersonalSetting = () => {
     }
   };
 
-  const changePassword = () => {
-    window.location.assign(buildAuthentikPasswordChangeUrl());
+  const changePassword = async () => {
+    // if (inputs.original_password === '') {
+    //   showError(t('请输入原密码！'));
+    //   return;
+    // }
+    if (inputs.set_new_password === '') {
+      showError(t('请输入新密码！'));
+      return;
+    }
+    if (inputs.original_password === inputs.set_new_password) {
+      showError(t('新密码需要和原密码不一致！'));
+      return;
+    }
+    if (inputs.set_new_password !== inputs.set_new_password_confirmation) {
+      showError(t('两次输入的密码不一致！'));
+      return;
+    }
+    const res = await API.put(`/api/user/self`, {
+      original_password: inputs.original_password,
+      password: inputs.set_new_password,
+    });
+    const { success, message } = res.data;
+    if (success) {
+      showSuccess(t('密码修改成功！'));
+      setShowWeChatBindModal(false);
+    } else {
+      showError(message);
+    }
+    setShowChangePasswordModal(false);
   };
 
   const sendVerificationCode = async () => {
@@ -542,6 +579,7 @@ const PersonalSetting = () => {
                 setShowWeChatBindModal={setShowWeChatBindModal}
                 generateAccessToken={generateAccessToken}
                 handleSystemTokenClick={handleSystemTokenClick}
+                setShowChangePasswordModal={setShowChangePasswordModal}
                 setShowAccountDeleteModal={setShowAccountDeleteModal}
                 passkeyStatus={passkeyStatus}
                 passkeySupported={passkeySupported}
@@ -549,7 +587,6 @@ const PersonalSetting = () => {
                 passkeyDeleteLoading={passkeyDeleteLoading}
                 onPasskeyRegister={handleRegisterPasskey}
                 onPasskeyDelete={handleRemovePasskey}
-                onPasswordChange={changePassword}
               />
 
               {/* 偏好设置（语言等） */}
@@ -602,6 +639,18 @@ const PersonalSetting = () => {
         handleInputChange={handleInputChange}
         deleteAccount={deleteAccount}
         userState={userState}
+        turnstileEnabled={turnstileEnabled}
+        turnstileSiteKey={turnstileSiteKey}
+        setTurnstileToken={setTurnstileToken}
+      />
+
+      <ChangePasswordModal
+        t={t}
+        showChangePasswordModal={showChangePasswordModal}
+        setShowChangePasswordModal={setShowChangePasswordModal}
+        inputs={inputs}
+        handleInputChange={handleInputChange}
+        changePassword={changePassword}
         turnstileEnabled={turnstileEnabled}
         turnstileSiteKey={turnstileSiteKey}
         setTurnstileToken={setTurnstileToken}

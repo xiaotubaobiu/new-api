@@ -106,6 +106,11 @@ export function SignUpForm({
     status?.oauth_register_enabled ??
     status?.data?.oauth_register_enabled ??
     true
+  const passwordRegisterEnabled = Boolean(
+    status?.register_enabled ?? status?.data?.register_enabled ?? true
+  ) && Boolean(
+    status?.password_register_enabled ?? status?.data?.password_register_enabled ?? true
+  )
   const hasWeChatLogin = Boolean(status?.wechat_login)
 
   const wechatQrCodeUrl = useMemo(() => {
@@ -223,6 +228,7 @@ export function SignUpForm({
         className={cn('grid gap-4', className)}
         {...props}
       >
+        {passwordRegisterEnabled && (<>
         {/* Username Field */}
         <FormField
           control={form.control}
@@ -332,6 +338,8 @@ export function SignUpForm({
           </div>
         )}
 
+        </>)}
+
         <LegalConsent
           status={status}
           checked={agreedToLegal}
@@ -340,6 +348,7 @@ export function SignUpForm({
         />
 
         {/* Submit Button */}
+        {passwordRegisterEnabled && (
         <Button
           type='submit'
           className='mt-2 w-full justify-center gap-2'
@@ -348,16 +357,15 @@ export function SignUpForm({
           {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
           {t('Create account')}
         </Button>
+        )}
 
-        {oauthRegisterEnabled && (
-          <OAuthProviders
+        <OAuthProviders
             status={status}
             disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
             className='pt-2'
           />
-        )}
       </form>
 
       {hasWeChatLogin && (

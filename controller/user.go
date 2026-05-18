@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/QuantumNous/new-api/constant"
 
@@ -30,11 +31,17 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+const (
+	sessionKeyAuthProvider = "auth_provider"
+	sessionKeyOIDCIDToken  = "oidc_id_token"
+)
+
+type loginSessionMetadata struct {
+	AuthProvider string
+	OIDCIDToken  string
+}
+
 func Login(c *gin.Context) {
-	if !common.PasswordLoginEnabled {
-		common.ApiErrorI18n(c, i18n.MsgUserPasswordLoginDisabled)
-		return
-	}
 	var loginRequest LoginRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&loginRequest)
 	if err != nil {
@@ -64,6 +71,10 @@ func Login(c *gin.Context) {
 		}
 		return
 	}
+	if !common.PasswordLoginEnabled && !canUseLocalPasswordLoginWhenDisabled(user.Role) {
+		common.ApiErrorI18n(c, i18n.MsgUserPasswordLoginDisabled)
+		return
+	}
 
 	// 检查是否启用2FA
 	if model.IsTwoFAEnabled(user.Id) {
@@ -90,8 +101,16 @@ func Login(c *gin.Context) {
 	setupLogin(&user, c)
 }
 
+func canUseLocalPasswordLoginWhenDisabled(role int) bool {
+	return role >= common.RoleAdminUser
+}
+
 // setup session & cookies and then return user info
 func setupLogin(user *model.User, c *gin.Context) {
+	setupLoginWithMetadata(user, c, nil)
+}
+
+func setupLoginWithMetadata(user *model.User, c *gin.Context, metadata *loginSessionMetadata) {
 	model.UpdateUserLastLoginAt(user.Id)
 	session := sessions.Default(c)
 	session.Set("id", user.Id)
@@ -99,6 +118,16 @@ func setupLogin(user *model.User, c *gin.Context) {
 	session.Set("role", user.Role)
 	session.Set("status", user.Status)
 	session.Set("group", user.Group)
+	session.Delete(sessionKeyAuthProvider)
+	session.Delete(sessionKeyOIDCIDToken)
+	if metadata != nil {
+		if metadata.AuthProvider != "" {
+			session.Set(sessionKeyAuthProvider, metadata.AuthProvider)
+		}
+		if metadata.OIDCIDToken != "" {
+			session.Set(sessionKeyOIDCIDToken, metadata.OIDCIDToken)
+		}
+	}
 	err := session.Save()
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
@@ -120,6 +149,14 @@ func setupLogin(user *model.User, c *gin.Context) {
 
 func Logout(c *gin.Context) {
 	session := sessions.Default(c)
+	redirectTo := ""
+	if getSessionString(session, sessionKeyAuthProvider) == "oidc" {
+		redirectTo = buildOIDCLogoutRedirect(
+			system_setting.GetOIDCSettings().EndSessionEndpoint,
+			system_setting.ServerAddress,
+			getSessionString(session, sessionKeyOIDCIDToken),
+		)
+	}
 	session.Clear()
 	err := session.Save()
 	if err != nil {
@@ -129,10 +166,46 @@ func Logout(c *gin.Context) {
 		})
 		return
 	}
+	data := gin.H{}
+	if redirectTo != "" {
+		data["redirect_to"] = redirectTo
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"message": "",
 		"success": true,
+		"data":    data,
 	})
+}
+
+func getSessionString(session sessions.Session, key string) string {
+	value := session.Get(key)
+	str, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(str)
+}
+
+func buildOIDCLogoutRedirect(endSessionEndpoint string, serverAddress string, idToken string) string {
+	endSessionEndpoint = strings.TrimSpace(endSessionEndpoint)
+	serverAddress = strings.TrimRight(strings.TrimSpace(serverAddress), "/")
+	if endSessionEndpoint == "" || serverAddress == "" {
+		return ""
+	}
+
+	logoutURL, err := url.Parse(endSessionEndpoint)
+	if err != nil {
+		return ""
+	}
+
+	postLogoutRedirect := serverAddress + "/sign-in"
+	query := logoutURL.Query()
+	query.Set("post_logout_redirect_uri", postLogoutRedirect)
+	if trimmedIDToken := strings.TrimSpace(idToken); trimmedIDToken != "" {
+		query.Set("id_token_hint", trimmedIDToken)
+	}
+	logoutURL.RawQuery = query.Encode()
+	return logoutURL.String()
 }
 
 func Register(c *gin.Context) {

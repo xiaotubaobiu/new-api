@@ -32,8 +32,10 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
   const { auth } = useAuthStore()
 
   const handleSignOut = async () => {
+    let oidcLogoutUrl: string | undefined
     try {
-      await logout()
+      const res = await logout()
+      oidcLogoutUrl = (res?.data as { redirect_to?: string })?.redirect_to
     } catch {
       /* empty */
     }
@@ -46,9 +48,12 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
       /* empty */
     }
     toast.success(t('Signed out'))
-    // Refresh the page to clear all state and update UI
     if (typeof window !== 'undefined') {
-      window.location.reload()
+      if (oidcLogoutUrl) {
+        window.location.href = oidcLogoutUrl
+      } else {
+        window.location.reload()
+      }
     }
   }
 

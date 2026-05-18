@@ -1,0 +1,283 @@
+/*
+Visual verification checklist:
+- Desktop: hero, cards, and code blocks align cleanly
+- Mobile: all sections collapse to one column without overflow except code blocks
+- Light and dark themes both preserve contrast
+*/
+
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+.docs-page {
+  --docs-code-bg: #0f172a;
+  --docs-code-bg-elevated: rgba(30, 41, 59, 0.92);
+  --docs-code-border: rgba(148, 163, 184, 0.2);
+  --docs-code-text: #e2e8f0;
+  --docs-code-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  scroll-behavior: smooth;
+}
+
+.docs-page .docs-page-shell {
+  width: 100%;
+}
+
+.docs-page .docs-anchor-section {
+  scroll-margin-top: 88px;
+}
+
+.docs-page pre {
+  margin: 0;
+  white-space: pre;
+}
+
+.docs-page code,
+.docs-page .docs-muted-code,
+.docs-page .docs-hero-meta-value {
+  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas,
+    Liberation Mono, Courier New, monospace;
+}
+
+.docs-page a {
+  color: inherit;
+}
+
+.docs-page .docs-hero {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
+    radial-gradient(circle at right center, rgba(16, 185, 129, 0.1), transparent 28%),
+    var(--semi-color-bg-1);
+}
+
+.docs-page .docs-hero-subtitle {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--semi-color-text-1);
+}
+
+.docs-page .docs-hero-meta-card,
+.docs-page .docs-hero-aside,
+.docs-page .docs-info-panel {
+  border: 1px solid var(--semi-color-border);
+  border-radius: 20px;
+  background: var(--semi-color-fill-0);
+  padding: 16px;
+}
+
+.docs-page .docs-hero-meta-card {
+  display: flex;
+  min-height: 150px;
+  height: 100%;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docs-page .docs-hero-meta-value {
+  margin-top: 8px;
+  word-break: break-all;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--semi-color-text-0);
+}
+
+.docs-page .docs-hero-cta-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.docs-page .docs-hero-cta-group > * {
+  min-width: 0;
+}
+
+.docs-page .docs-hero-aside {
+  width: 100%;
+  max-width: 360px;
+}
+
+.docs-page .docs-hero-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.docs-page .docs-hero-fact-index {
+  display: inline-flex;
+  height: 24px;
+  width: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--semi-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.docs-page .docs-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--semi-color-text-1);
+}
+
+.docs-page .docs-list li + li {
+  margin-top: 10px;
+}
+
+.docs-page .docs-code-card,
+.docs-page .docs-client-card,
+.docs-page .docs-capability-card,
+.docs-page .docs-resource-link {
+  height: 100%;
+}
+
+.docs-page .docs-code-card .semi-card-body,
+.docs-page .docs-client-card .semi-card-body {
+  height: 100%;
+}
+
+.docs-page .docs-code-block {
+  overflow-x: auto;
+  border-top: 1px solid var(--docs-code-border);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    var(--docs-code-bg);
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--docs-code-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.docs-page .docs-code-block code {
+  display: block;
+  min-width: max-content;
+}
+
+.docs-page .docs-resource-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.docs-page .docs-resource-link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 20px;
+  border: 1px solid var(--semi-color-border);
+  background: var(--semi-color-bg-1);
+  padding: 20px;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.docs-page .docs-resource-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--semi-blue-5), 0.35);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.docs-page .docs-resource-link:focus-visible {
+  outline: 2px solid rgba(var(--semi-blue-5), 0.5);
+  outline-offset: 3px;
+}
+
+.docs-page .docs-resource-link .semi-typography:last-child {
+  margin-top: auto;
+}
+
+.docs-page .docs-muted-code {
+  word-break: break-all;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 14px;
+  background: var(--semi-color-fill-0);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--semi-color-text-0);
+}
+
+@media (max-width: 1023px) {
+  .docs-page .docs-hero-aside {
+    max-width: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .docs-page {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+
+  .docs-page .docs-page-shell {
+    gap: 20px;
+  }
+
+  .docs-page .docs-anchor-section {
+    scroll-margin-top: 76px;
+  }
+
+  .docs-page .docs-hero,
+  .docs-page .docs-anchor-section .semi-card {
+    border-radius: 20px !important;
+  }
+
+  .docs-page .docs-hero-meta-card,
+  .docs-page .docs-hero-aside,
+  .docs-page .docs-info-panel,
+  .docs-page .docs-resource-link {
+    padding: 14px;
+  }
+
+  .docs-page .docs-code-block {
+    padding: 14px;
+    font-size: 12px;
+  }
+
+  .docs-page .docs-hero-cta-group {
+    flex-direction: column;
+  }
+
+  .docs-page .docs-hero-cta-group > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .docs-page {
+    --docs-code-bg: #020617;
+    --docs-code-bg-elevated: rgba(15, 23, 42, 0.92);
+    --docs-code-border: rgba(148, 163, 184, 0.22);
+    --docs-code-text: #e5eefc;
+    --docs-code-shadow: 0 18px 40px rgba(2, 6, 23, 0.3);
+  }
+
+  .docs-page .docs-resource-link:hover {
+    box-shadow: 0 12px 28px rgba(2, 6, 23, 0.24);
+  }
+}

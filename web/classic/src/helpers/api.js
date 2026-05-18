@@ -23,6 +23,14 @@ import {
   formatMessageForAPI,
   isValidMessage,
 } from './utils';
+import {
+  AUTHENTIK_USER_PORTAL_URL,
+  AUTHENTIK_SELF_SERVICE_ENROLLMENT_FLOW_SLUG,
+  buildAuthentikFlowContinueUrl,
+  buildOIDCAuthorizationUrl,
+  NEWAPI_CONSOLE_PATH,
+  storeOAuthCallbackRedirectTarget,
+} from './authentikOidcFlow';
 import axios from 'axios';
 import { MESSAGE_ROLES } from '../constants/playground.constants';
 
@@ -36,7 +44,6 @@ export let API = axios.create({
   },
 });
 
-
 function redirectToOAuthUrl(url, options = {}) {
   const { openInNewTab = false } = options;
   const targetUrl = typeof url === 'string' ? url : url.toString();
@@ -48,7 +55,6 @@ function redirectToOAuthUrl(url, options = {}) {
 
   window.location.assign(targetUrl);
 }
-
 
 function patchAPIInstance(instance) {
   const originalGet = instance.get.bind(instance);
@@ -287,14 +293,38 @@ export async function onOIDCClicked(
 ) {
   const state = await prepareOAuthState(options);
   if (!state) return;
-  const url = new URL(auth_url);
-  url.searchParams.set('client_id', client_id);
-  url.searchParams.set('redirect_uri', `${window.location.origin}/oauth/oidc`);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', 'openid profile email');
-  url.searchParams.set('state', state);
+  const url = buildOIDCAuthorizationUrl({
+    authorizationEndpoint: auth_url,
+    clientId: client_id,
+    redirectUri: `${window.location.origin}/oauth/oidc`,
+    state,
+  });
+  storeOAuthCallbackRedirectTarget(state, options.callbackRedirectTarget);
+  if (options.authentikFlowSlug) {
+    redirectToOAuthUrl(
+      buildAuthentikFlowContinueUrl(url, options.authentikFlowSlug),
+      { openInNewTab },
+    );
+    return;
+  }
   redirectToOAuthUrl(url, { openInNewTab });
 }
+
+export const loginPageOIDCOptions = {
+  shouldLogout: true,
+  callbackRedirectTarget: AUTHENTIK_USER_PORTAL_URL,
+};
+
+export const registerPageOIDCOptions = {
+  shouldLogout: true,
+  authentikFlowSlug: AUTHENTIK_SELF_SERVICE_ENROLLMENT_FLOW_SLUG,
+  callbackRedirectTarget: AUTHENTIK_USER_PORTAL_URL,
+};
+
+export const newAPIAppOIDCOptions = {
+  shouldLogout: false,
+  callbackRedirectTarget: NEWAPI_CONSOLE_PATH,
+};
 
 export async function onGitHubOAuthClicked(github_client_id, options = {}) {
   const state = await prepareOAuthState(options);
