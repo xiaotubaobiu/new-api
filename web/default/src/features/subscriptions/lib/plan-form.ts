@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 import type { TFunction } from 'i18next'
 import type { SubscriptionPlan, PlanPayload } from '../types'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 export function getPlanFormSchema(t: TFunction) {
   return z.object({
@@ -68,6 +69,11 @@ export const PLAN_FORM_DEFAULTS: PlanFormValues = {
   waffo_pancake_product_id: '',
 }
 
+function getQuotaPerUnit(): number {
+  const { config } = useSystemConfigStore.getState()
+  return config?.currency?.quotaPerUnit || 500000
+}
+
 export function planToFormValues(plan: SubscriptionPlan): PlanFormValues {
   return {
     title: plan.title || '',
@@ -81,7 +87,7 @@ export function planToFormValues(plan: SubscriptionPlan): PlanFormValues {
     enabled: plan.enabled !== false,
     sort_order: Number(plan.sort_order || 0),
     max_purchase_per_user: Number(plan.max_purchase_per_user || 0),
-    total_amount: Number(plan.total_amount || 0),
+    total_amount: Number(plan.total_amount || 0) / getQuotaPerUnit(),
     upgrade_group: plan.upgrade_group || '',
     stripe_price_id: plan.stripe_price_id || '',
     creem_product_id: plan.creem_product_id || '',
@@ -94,7 +100,7 @@ export function formValuesToPlanPayload(values: PlanFormValues): PlanPayload {
     plan: {
       ...values,
       price_amount: Number(values.price_amount || 0),
-      currency: 'USD',
+      currency: 'CNY',
       duration_value: Number(values.duration_value || 0),
       custom_seconds: Number(values.custom_seconds || 0),
       quota_reset_period: values.quota_reset_period || 'never',
@@ -104,7 +110,7 @@ export function formValuesToPlanPayload(values: PlanFormValues): PlanPayload {
           : 0,
       sort_order: Number(values.sort_order || 0),
       max_purchase_per_user: Number(values.max_purchase_per_user || 0),
-      total_amount: Number(values.total_amount || 0),
+      total_amount: Math.round(Number(values.total_amount || 0) * getQuotaPerUnit()),
       upgrade_group: values.upgrade_group || '',
     },
   }

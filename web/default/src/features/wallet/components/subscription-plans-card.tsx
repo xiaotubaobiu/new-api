@@ -518,14 +518,24 @@ export function SubscriptionPlansCard({
               const count = planPurchaseCountMap.get(plan.id) || 0
               const reached = limit > 0 && count >= limit
 
+              const resetLabel = formatResetPeriod(plan, t)
+              const hasReset = resetLabel !== t('No Reset')
+              const resetMultiplier = hasReset
+                ? (plan.quota_reset_period === 'daily' ? 30
+                  : plan.quota_reset_period === 'weekly' ? 4
+                  : plan.quota_reset_period === 'monthly' ? 1
+                  : 1)
+                : 1
+              const totalQuotaDisplay = hasReset ? totalAmount * resetMultiplier : totalAmount
+
               const benefits = [
                 `${t('Validity Period')}: ${formatDuration(plan, t)}`,
-                formatResetPeriod(plan, t) !== t('No Reset')
-                  ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
-                  : null,
-                totalAmount > 0
-                  ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
+                totalQuotaDisplay > 0
+                  ? `${t('Total Quota')}: ${formatQuota(totalQuotaDisplay)}`
                   : `${t('Total Quota')}: ${t('Unlimited')}`,
+                hasReset
+                  ? `${resetLabel} ${t('Quota')}: ${formatQuota(totalAmount)}`
+                  : null,
                 limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
                 plan.upgrade_group
                   ? `${t('Upgrade Group')}: ${plan.upgrade_group}`
@@ -566,7 +576,7 @@ export function SubscriptionPlansCard({
 
                     <div className='py-2'>
                       <span className='text-primary text-2xl font-bold'>
-                        ${price}
+                        ¥{price}
                       </span>
                     </div>
 

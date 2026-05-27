@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 export const AUTHENTIK_SELF_SERVICE_ENROLLMENT_FLOW_SLUG =
   'self-service-enrollment';
 export const AUTHENTIK_USER_PORTAL_URL =
-  'https://auth.000328.xyz:2053/if/user/';
+  'https://auth.000328.xyz/if/user/';
 export const NEWAPI_CONSOLE_PATH = '/console';
 
 const OAUTH_CALLBACK_REDIRECT_TARGET_PREFIX =

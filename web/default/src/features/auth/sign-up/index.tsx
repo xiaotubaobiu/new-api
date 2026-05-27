@@ -49,7 +49,7 @@ export function SignUp() {
         return
       }
       const authzUrl = buildOIDCOAuthUrl(oidcAuthUrl, oidcClientId, state)
-      const enrollmentUrl = `https://auth.000328.xyz:2053/if/flow/self-service-enrollment/?next=${encodeURIComponent(authzUrl)}`
+      const enrollmentUrl = `https://auth.000328.xyz/if/flow/self-service-enrollment/?next=${encodeURIComponent(authzUrl)}`
       window.location.href = enrollmentUrl
     } catch {
       redirecting.current = false

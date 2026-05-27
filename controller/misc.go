@@ -108,8 +108,6 @@ func GetStatus(c *gin.Context) {
 
 		"oidc_enabled":                system_setting.GetOIDCSettings().Enabled,
 		"password_login_enabled":      common.PasswordLoginEnabled,
-		"register_enabled":            common.RegisterEnabled,
-		"password_register_enabled":   common.PasswordRegisterEnabled,
 		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
 		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
 		"oidc_end_session_endpoint":   system_setting.GetOIDCSettings().EndSessionEndpoint,

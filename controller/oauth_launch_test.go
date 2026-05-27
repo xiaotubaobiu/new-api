@@ -21,10 +21,10 @@ func TestLaunchNewAPIOIDCRedirectsToAuthorizationEndpointWithStoredState(t *test
 		*system_setting.GetOIDCSettings() = originalOIDCSettings
 	}()
 
-	system_setting.ServerAddress = "https://matrix.000328.xyz:2053/"
+	system_setting.ServerAddress = "https://matrix.000328.xyz/"
 	*system_setting.GetOIDCSettings() = system_setting.OIDCSettings{
 		ClientId:              "newapi",
-		AuthorizationEndpoint: "https://auth.000328.xyz:2053/application/o/authorize/",
+		AuthorizationEndpoint: "https://auth.000328.xyz/application/o/authorize/",
 	}
 
 	router := newOIDCLaunchTestRouter(t, nil)
@@ -41,7 +41,7 @@ func TestLaunchNewAPIOIDCRedirectsToAuthorizationEndpointWithStoredState(t *test
 	if err != nil {
 		t.Fatalf("expected valid redirect URL: %v", err)
 	}
-	if got := redirectURL.Scheme + "://" + redirectURL.Host + redirectURL.Path; got != "https://auth.000328.xyz:2053/application/o/authorize/" {
+	if got := redirectURL.Scheme + "://" + redirectURL.Host + redirectURL.Path; got != "https://auth.000328.xyz/application/o/authorize/" {
 		t.Fatalf("unexpected authorization URL: %s", got)
 	}
 
@@ -49,7 +49,7 @@ func TestLaunchNewAPIOIDCRedirectsToAuthorizationEndpointWithStoredState(t *test
 	if got := query.Get("client_id"); got != "newapi" {
 		t.Fatalf("unexpected client_id: %q", got)
 	}
-	if got := query.Get("redirect_uri"); got != "https://matrix.000328.xyz:2053/oauth/oidc" {
+	if got := query.Get("redirect_uri"); got != "https://matrix.000328.xyz/oauth/oidc" {
 		t.Fatalf("unexpected redirect_uri: %q", got)
 	}
 	if got := query.Get("response_type"); got != "code" {
