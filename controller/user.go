@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type LoginRequest struct {
@@ -944,10 +946,78 @@ func CreateUser(c *gin.Context) {
 }
 
 type ManageRequest struct {
-	Id     int    `json:"id"`
-	Action string `json:"action"`
-	Value  int    `json:"value"`
-	Mode   string `json:"mode"`
+	Id     int     `json:"id"`
+	Action string  `json:"action"`
+	Value  int     `json:"value"`
+	Mode   string  `json:"mode"`
+	Factor float64 `json:"factor"`
+}
+
+type BatchUserQuotaRequest struct {
+	Ids    []int   `json:"ids"`
+	Mode   string  `json:"mode"`
+	Value  int     `json:"value"`
+	Factor float64 `json:"factor"`
+}
+
+type BatchUserQuotaResult struct {
+	AffectedCount int   `json:"affected_count"`
+	SkippedCount  int   `json:"skipped_count"`
+	SkippedIds    []int `json:"skipped_ids"`
+}
+
+func computeAdjustedUserQuota(oldQuota int, mode string, value int, factor float64) (int, error) {
+	switch mode {
+	case "add":
+		if value <= 0 {
+			return 0, fmt.Errorf("quota change must be greater than zero")
+		}
+		return oldQuota + value, nil
+	case "subtract":
+		if value <= 0 {
+			return 0, fmt.Errorf("quota change must be greater than zero")
+		}
+		return oldQuota - value, nil
+	case "override":
+		return value, nil
+	case "multiply":
+		if factor <= 0 {
+			return 0, fmt.Errorf("factor must be greater than zero")
+		}
+		return int(math.Round(float64(oldQuota) * factor)), nil
+	case "divide":
+		if factor <= 0 {
+			return 0, fmt.Errorf("factor must be greater than zero")
+		}
+		return int(math.Round(float64(oldQuota) / factor)), nil
+	default:
+		return 0, fmt.Errorf("invalid quota adjustment mode")
+	}
+}
+
+func formatQuotaFactor(factor float64) string {
+	return strconv.FormatFloat(factor, 'f', -1, 64)
+}
+
+func buildUserQuotaLogContent(mode string, oldQuota int, newQuota int, value int, factor float64, batch bool) string {
+	prefix := "管理员"
+	if batch {
+		prefix = "管理员批量"
+	}
+	switch mode {
+	case "add":
+		return fmt.Sprintf("%s增加用户额度 %s", prefix, logger.LogQuota(value))
+	case "subtract":
+		return fmt.Sprintf("%s减少用户额度 %s", prefix, logger.LogQuota(value))
+	case "override":
+		return fmt.Sprintf("%s覆盖用户额度从 %s 为 %s", prefix, logger.LogQuota(oldQuota), logger.LogQuota(newQuota))
+	case "multiply":
+		return fmt.Sprintf("%s调整用户额度从 %s 为 %s（乘以 %s）", prefix, logger.LogQuota(oldQuota), logger.LogQuota(newQuota), formatQuotaFactor(factor))
+	case "divide":
+		return fmt.Sprintf("%s调整用户额度从 %s 为 %s（除以 %s）", prefix, logger.LogQuota(oldQuota), logger.LogQuota(newQuota), formatQuotaFactor(factor))
+	default:
+		return fmt.Sprintf("%s调整用户额度从 %s 为 %s", prefix, logger.LogQuota(oldQuota), logger.LogQuota(newQuota))
+	}
 }
 
 // ManageUser Only admin user can do this
@@ -1026,41 +1096,41 @@ func ManageUser(c *gin.Context) {
 			"admin_id":       adminId,
 			"admin_username": adminName,
 		}
-		switch req.Mode {
-		case "add":
-			if req.Value <= 0 {
+		oldQuota := user.Quota
+		newQuota, quotaErr := computeAdjustedUserQuota(oldQuota, req.Mode, req.Value, req.Factor)
+		if quotaErr != nil {
+			if req.Mode == "add" || req.Mode == "subtract" {
 				common.ApiErrorI18n(c, i18n.MsgUserQuotaChangeZero)
 				return
 			}
+			common.ApiError(c, quotaErr)
+			return
+		}
+		switch req.Mode {
+		case "add":
 			if err := model.IncreaseUserQuota(user.Id, req.Value, true); err != nil {
 				common.ApiError(c, err)
 				return
 			}
-			model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage,
-				fmt.Sprintf("管理员增加用户额度 %s", logger.LogQuota(req.Value)), adminInfo)
 		case "subtract":
-			if req.Value <= 0 {
-				common.ApiErrorI18n(c, i18n.MsgUserQuotaChangeZero)
-				return
-			}
 			if err := model.DecreaseUserQuota(user.Id, req.Value, true); err != nil {
 				common.ApiError(c, err)
 				return
 			}
-			model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage,
-				fmt.Sprintf("管理员减少用户额度 %s", logger.LogQuota(req.Value)), adminInfo)
-		case "override":
-			oldQuota := user.Quota
-			if err := model.DB.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", req.Value).Error; err != nil {
+		case "override", "multiply", "divide":
+			if err := model.DB.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", newQuota).Error; err != nil {
 				common.ApiError(c, err)
 				return
 			}
-			model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage,
-				fmt.Sprintf("管理员覆盖用户额度从 %s 为 %s", logger.LogQuota(oldQuota), logger.LogQuota(req.Value)), adminInfo)
+			if err := model.InvalidateUserCache(user.Id); err != nil {
+				common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", user.Id, err.Error()))
+			}
 		default:
 			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 			return
 		}
+		model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage,
+			buildUserQuotaLogContent(req.Mode, oldQuota, newQuota, req.Value, req.Factor, false), adminInfo)
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "",
@@ -1094,6 +1164,112 @@ func ManageUser(c *gin.Context) {
 		"data":    clearUser,
 	})
 	return
+}
+
+// BatchUpdateUserQuota adjusts quota for selected users.
+func BatchUpdateUserQuota(c *gin.Context) {
+	var req BatchUserQuotaRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+
+	seenIds := make(map[int]struct{}, len(req.Ids))
+	ids := make([]int, 0, len(req.Ids))
+	for _, id := range req.Ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seenIds[id]; ok {
+			continue
+		}
+		seenIds[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+
+	if _, err := computeAdjustedUserQuota(0, req.Mode, req.Value, req.Factor); err != nil {
+		if req.Mode == "add" || req.Mode == "subtract" {
+			common.ApiErrorI18n(c, i18n.MsgUserQuotaChangeZero)
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+
+	var users []model.User
+	if err := model.DB.Unscoped().Where("id IN ?", ids).Find(&users).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	usersById := make(map[int]model.User, len(users))
+	for _, user := range users {
+		usersById[user.Id] = user
+	}
+
+	type quotaLog struct {
+		userId   int
+		oldQuota int
+		newQuota int
+	}
+
+	myRole := c.GetInt("role")
+	result := BatchUserQuotaResult{
+		SkippedIds: make([]int, 0),
+	}
+	logs := make([]quotaLog, 0, len(ids))
+
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
+		for _, id := range ids {
+			user, ok := usersById[id]
+			if !ok || !canManageTargetRole(myRole, user.Role) {
+				result.SkippedIds = append(result.SkippedIds, id)
+				continue
+			}
+
+			newQuota, err := computeAdjustedUserQuota(user.Quota, req.Mode, req.Value, req.Factor)
+			if err != nil {
+				return err
+			}
+			if err := tx.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", newQuota).Error; err != nil {
+				return err
+			}
+			result.AffectedCount++
+			logs = append(logs, quotaLog{
+				userId:   user.Id,
+				oldQuota: user.Quota,
+				newQuota: newQuota,
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	adminInfo := map[string]interface{}{
+		"admin_id":        c.GetInt("id"),
+		"admin_username":  c.GetString("username"),
+		"batch":           true,
+		"selected_count":  len(ids),
+		"affected_count":  result.AffectedCount,
+		"skipped_count":   len(result.SkippedIds),
+		"adjustment_mode": req.Mode,
+	}
+	for _, log := range logs {
+		if err := model.InvalidateUserCache(log.userId); err != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", log.userId, err.Error()))
+		}
+		model.RecordLogWithAdminInfo(log.userId, model.LogTypeManage,
+			buildUserQuotaLogContent(req.Mode, log.oldQuota, log.newQuota, req.Value, req.Factor, true), adminInfo)
+	}
+
+	result.SkippedCount = len(result.SkippedIds)
+	common.ApiSuccess(c, result)
 }
 
 type emailBindRequest struct {
