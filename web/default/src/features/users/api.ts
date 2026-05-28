@@ -54,6 +54,7 @@ export async function searchUsers(
     group = '',
     role = '',
     status = '',
+    has_subscription = '',
     p = 1,
     page_size = 10,
   } = params
@@ -62,6 +63,9 @@ export async function searchUsers(
   queryParams.set('group', group)
   if (role) queryParams.set('role', role)
   if (status) queryParams.set('status', status)
+  if (has_subscription) {
+    queryParams.set('has_subscription', has_subscription)
+  }
   queryParams.set('p', String(p))
   queryParams.set('page_size', String(page_size))
   const res = await api.get(`/api/user/search?${queryParams.toString()}`)

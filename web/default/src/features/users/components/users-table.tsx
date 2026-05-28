@@ -44,6 +44,7 @@ import {
   USER_STATUS,
   getUserStatusOptions,
   getUserRoleOptions,
+  getUserSubscriptionOptions,
   isUserDeleted,
 } from '../constants'
 import type { User } from '../types'
@@ -64,7 +65,9 @@ export function UsersTable() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    has_subscription: false,
+  })
 
   const {
     globalFilter,
@@ -83,6 +86,11 @@ export function UsersTable() {
       { columnId: 'status', searchKey: 'status', type: 'array' },
       { columnId: 'role', searchKey: 'role', type: 'array' },
       { columnId: 'group', searchKey: 'group', type: 'string' },
+      {
+        columnId: 'has_subscription',
+        searchKey: 'has_subscription',
+        type: 'array',
+      },
     ],
   })
   const statusFilter =
@@ -96,6 +104,10 @@ export function UsersTable() {
   const groupFilter =
     (columnFilters.find((filter) => filter.id === 'group')?.value as string) ??
     ''
+  const subscriptionFilter =
+    (columnFilters.find((filter) => filter.id === 'has_subscription')?.value as
+      | string[]
+      | undefined) ?? []
 
   // Fetch data with React Query
   const { data, isLoading, isFetching } = useQuery({
@@ -107,12 +119,16 @@ export function UsersTable() {
       statusFilter,
       roleFilter,
       groupFilter,
+      subscriptionFilter,
       refreshTrigger,
     ],
     queryFn: async () => {
       const hasFilter = globalFilter?.trim()
       const hasColumnFilter =
-        statusFilter.length > 0 || roleFilter.length > 0 || Boolean(groupFilter)
+        statusFilter.length > 0 ||
+        roleFilter.length > 0 ||
+        Boolean(groupFilter) ||
+        subscriptionFilter.length > 0
       const params = {
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
@@ -126,6 +142,7 @@ export function UsersTable() {
               status: statusFilter[0] ?? '',
               role: roleFilter[0] ?? '',
               group: groupFilter,
+              has_subscription: subscriptionFilter[0] ?? '',
             })
           : await getUsers(params)
 
@@ -216,6 +233,12 @@ export function UsersTable() {
             columnId: 'role',
             title: t('Role'),
             options: getUserRoleOptions(t),
+            singleSelect: true,
+          },
+          {
+            columnId: 'has_subscription',
+            title: t('Subscription'),
+            options: getUserSubscriptionOptions(t),
             singleSelect: true,
           },
         ],

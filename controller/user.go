@@ -336,8 +336,14 @@ func SearchUsers(c *gin.Context) {
 			status = &parsed
 		}
 	}
+	var hasSubscription *bool
+	if subStr := c.Query("has_subscription"); subStr != "" {
+		if parsed, err := strconv.ParseBool(subStr); err == nil {
+			hasSubscription = &parsed
+		}
+	}
 	pageInfo := common.GetPageQuery(c)
-	users, total, err := model.SearchUsers(keyword, group, role, status, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	users, total, err := model.SearchUsers(keyword, group, role, status, hasSubscription, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return

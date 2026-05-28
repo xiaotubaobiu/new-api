@@ -225,7 +225,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	return users, total, nil
 }
 
-func SearchUsers(keyword string, group string, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
+func SearchUsers(keyword string, group string, role *int, status *int, hasActiveSubscription *bool, startIdx int, num int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 	var err error
@@ -265,6 +265,18 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	}
 	if status != nil {
 		query = query.Where("status = ?", *status)
+	}
+	if hasActiveSubscription != nil {
+		now := common.GetTimestamp()
+		activeSubscriptionQuery := tx.Model(&UserSubscription{}).
+			Select("1").
+			Where("user_subscriptions.user_id = users.id").
+			Where("user_subscriptions.status = ? AND user_subscriptions.end_time > ?", "active", now)
+		if *hasActiveSubscription {
+			query = query.Where("EXISTS (?)", activeSubscriptionQuery)
+		} else {
+			query = query.Where("NOT EXISTS (?)", activeSubscriptionQuery)
+		}
 	}
 
 	// 获取总数

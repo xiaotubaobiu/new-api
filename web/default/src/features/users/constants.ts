@@ -93,6 +93,11 @@ export const getUserRoleOptions = (t: (key: string) => string) => [
   { label: t('Root'), value: String(USER_ROLE.ROOT), icon: Shield },
 ]
 
+export const getUserSubscriptionOptions = (t: (key: string) => string) => [
+  { label: t('Yes'), value: 'true' },
+  { label: t('No'), value: 'false' },
+]
+
 // ============================================================================
 // Default Values
 // ============================================================================
