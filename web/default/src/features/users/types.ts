@@ -94,6 +94,7 @@ export interface SearchUsersParams {
   group?: string
   role?: string
   status?: string
+  has_subscription?: string
   p?: number
   page_size?: number
 }

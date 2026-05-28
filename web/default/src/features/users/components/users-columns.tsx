@@ -154,9 +154,7 @@ export function useUsersColumns(): ColumnDef<User>[] {
           </Tooltip>
         )
       },
-      filterFn: (row, id, value) => {
-        return value.includes(String(row.getValue(id)))
-      },
+      filterFn: () => true,
       enableSorting: false,
       meta: { label: t('Status'), mobileBadge: true },
     },
@@ -370,6 +368,18 @@ export function useUsersColumns(): ColumnDef<User>[] {
         )
       },
       meta: { label: t('Last Login'), mobileHidden: true },
+    },
+    {
+      id: 'has_subscription',
+      accessorFn: () => '',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Subscription')} />
+      ),
+      cell: () => null,
+      filterFn: () => true,
+      enableHiding: false,
+      enableSorting: false,
+      meta: { label: t('Subscription'), mobileHidden: true },
     },
     {
       id: 'actions',
