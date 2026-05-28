@@ -26,3 +26,31 @@
 
 ## 📸 运行证明 / Proof of Work
 (请在此粘贴截图、关键日志或测试报告，以证明变更生效)
+
+---
+
+## Fork workflow checklist
+
+- [ ] Base branch is `main`; this PR is from a short-lived branch such as `feature/...`, `fix/...`, `docs/...`, `chore/...`, `hotfix/...`, `sync/...`, or `codex/...`.
+- [ ] This PR has one clear purpose and does not mix unrelated backend, frontend, dependency, generated-file, or documentation changes.
+- [ ] I fetched the latest fork and, when relevant, official upstream changes before opening this PR.
+- [ ] If this PR syncs official upstream code, it is clearly marked as an upstream-sync PR and does not include business feature changes.
+- [ ] If conflicts were resolved, I checked that fork-specific behavior was not accidentally removed.
+- [ ] Lockfile changes are intentional and correspond to dependency changes.
+- [ ] Verification performed:
+
+```text
+Paste commands run and results here.
+```
+
+## Risk areas
+
+Check all that apply:
+
+- [ ] Database migration or cross-database SQL
+- [ ] Billing, quota, pricing, or subscription behavior
+- [ ] Relay/provider request or response conversion
+- [ ] Authentication, OAuth, passkeys, permissions, or security
+- [ ] Frontend i18n/user-facing copy
+- [ ] Dependency, build, Docker, or deployment behavior
+- [ ] None of the above
