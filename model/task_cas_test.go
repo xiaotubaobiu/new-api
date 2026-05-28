@@ -145,6 +145,25 @@ func TestSnapshot_Roundtrip(t *testing.T) {
 // UpdateWithStatus CAS — DB integration tests
 // ---------------------------------------------------------------------------
 
+func TestInitOptionMapIncludesLobeHubChatURL(t *testing.T) {
+	originalOptionMap := common.OptionMap
+
+	t.Cleanup(func() {
+		common.OptionMapRWMutex.Lock()
+		common.OptionMap = originalOptionMap
+		common.OptionMapRWMutex.Unlock()
+	})
+
+	InitOptionMap()
+
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+
+	value, ok := common.OptionMap["LobeHubChatUrl"]
+	require.True(t, ok)
+	require.Empty(t, value)
+}
+
 func TestUpdateWithStatus_Win(t *testing.T) {
 	truncateTables(t)
 

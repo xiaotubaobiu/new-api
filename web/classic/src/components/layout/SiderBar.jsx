@@ -342,7 +342,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
 
   // 渲染子菜单项
   const renderSubItem = (item) => {
-    if (item.items && item.items.length > 0) {
+    if (Array.isArray(item.items)) {
       const isSelected = selectedKeys.includes(item.itemKey);
       const textColor = isSelected ? SELECTED_COLOR : 'inherit';
 

@@ -216,6 +216,10 @@ var (
 	CriticalRateLimitNum            = 20
 	CriticalRateLimitDuration int64 = 20 * 60
 
+	AuthRateLimitEnable   bool
+	AuthRateLimitNum      int
+	AuthRateLimitDuration int64
+
 	UploadRateLimitNum            = 10
 	UploadRateLimitDuration int64 = 60
 

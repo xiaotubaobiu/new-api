@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import { useEffect, useState } from 'react';
-import { fetchTokenKeys, getServerAddress } from '../../helpers/token';
+import { fetchAvailableTokenKeys, getServerAddress } from '../../helpers/token';
 import { showError } from '../../helpers';
 
 export function useTokenKeys(id) {
@@ -28,14 +28,34 @@ export function useTokenKeys(id) {
 
   useEffect(() => {
     const loadAllData = async () => {
-      const fetchedKeys = await fetchTokenKeys();
-      if (fetchedKeys.length === 0) {
+      const result = await fetchAvailableTokenKeys();
+
+      if (result.status === 'no_enabled_tokens') {
         showError('当前没有可用的启用令牌，请确认是否有令牌处于启用状态！');
         setTimeout(() => {
           window.location.href = '/console/token';
         }, 1500); // 延迟 1.5 秒后跳转
+        setIsLoading(false);
+        return;
       }
-      setKeys(fetchedKeys);
+
+      if (result.status === 'request_limited_or_failed') {
+        const errorMessage = String(result.error || '').toLowerCase();
+        const isRateLimited =
+          errorMessage.includes('429') ||
+          errorMessage.includes('too many requests') ||
+          errorMessage.includes('frequent requests');
+
+        showError(
+          isRateLimited
+            ? '请求次数过多，请稍后再试！'
+            : '获取聊天令牌失败，请稍后再试！',
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      setKeys(result.keys || []);
       setIsLoading(false);
 
       const address = getServerAddress();

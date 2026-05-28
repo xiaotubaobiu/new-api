@@ -27,9 +27,9 @@ import { DEFAULT_DISCOUNT_RATE } from '../constants'
  */
 export function formatCreemPrice(
   price: number,
-  currency: 'USD' | 'EUR'
+  currency: 'USD' | 'EUR' | 'CNY'
 ): string {
-  const symbol = currency === 'EUR' ? '€' : '$'
+  const symbol = currency === 'EUR' ? '€' : '¥'
   return `${symbol}${price.toFixed(2)}`
 }
 

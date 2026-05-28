@@ -25,6 +25,7 @@ import {
   showError,
   showInfo,
   showSuccess,
+  getLogoutRedirectUrl,
   setStatusData,
   prepareCredentialCreationOptions,
   buildRegistrationResult,
@@ -388,9 +389,14 @@ const PersonalSetting = () => {
 
     if (success) {
       showSuccess(t('账户已删除！'));
-      await API.get('/api/user/logout');
+      const logoutRes = await API.get('/api/user/logout');
+      const redirectTo = getLogoutRedirectUrl(logoutRes.data);
       userDispatch({ type: 'logout' });
       localStorage.removeItem('user');
+      if (redirectTo) {
+        window.location.assign(redirectTo);
+        return;
+      }
       navigate('/login');
     } else {
       showError(message);

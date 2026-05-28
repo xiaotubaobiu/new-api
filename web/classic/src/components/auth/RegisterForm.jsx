@@ -55,6 +55,7 @@ import {
   onGitHubOAuthClicked,
   onLinuxDOOAuthClicked,
   onOIDCClicked,
+  registerPageOIDCOptions,
 } from '../../helpers';
 import OIDCIcon from '../common/logo/OIDCIcon';
 import LinuxDoIcon from '../common/logo/LinuxDoIcon';
@@ -311,13 +312,21 @@ const RegisterForm = () => {
   };
 
   const handleOIDCClick = () => {
+    if (
+      !status.oidc_enabled ||
+      !status.oidc_authorization_endpoint ||
+      !status.oidc_client_id
+    ) {
+      showInfo(t('OIDC 未启用'));
+      return;
+    }
     setOidcLoading(true);
     try {
       onOIDCClicked(
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        registerPageOIDCOptions,
       );
     } finally {
       setTimeout(() => setOidcLoading(false), 3000);
@@ -389,6 +398,47 @@ const RegisterForm = () => {
     } catch (error) {
       showError('登录失败，请重试');
     }
+  };
+
+  const renderOIDCOnlyEntry = () => {
+    const oidcButtonDisabled =
+      !status.oidc_enabled ||
+      !status.oidc_authorization_endpoint ||
+      !status.oidc_client_id;
+
+    return (
+      <div className='flex flex-col items-center'>
+        <div className='w-full max-w-md'>
+          <div className='flex items-center justify-center mb-6 gap-2'>
+            <img src={logo} alt='Logo' className='h-10 rounded-full' />
+            <Title heading={3} className='!text-gray-800'>
+              {systemName}
+            </Title>
+          </div>
+
+          <Card className='border-0 !rounded-2xl overflow-hidden'>
+            <div className='flex justify-center pt-6 pb-2'>
+              <Title heading={3} className='text-gray-800 dark:text-gray-200'>
+                {t('注 册')}
+              </Title>
+            </div>
+            <div className='px-2 py-8'>
+              <Button
+                theme='outline'
+                className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
+                type='tertiary'
+                icon={<OIDCIcon style={{ color: '#1877F2' }} />}
+                onClick={handleOIDCClick}
+                loading={oidcLoading}
+                disabled={oidcButtonDisabled}
+              >
+                <span className='ml-3'>{t('使用 OIDC 继续')}</span>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
   };
 
   const renderOAuthOptions = () => {
@@ -780,24 +830,7 @@ const RegisterForm = () => {
         className='blur-ball blur-ball-teal'
         style={{ top: '50%', left: '-120px' }}
       />
-      <div className='w-full max-w-sm mt-[60px]'>
-        {showEmailRegister ||
-        !hasOAuthRegisterOptions
-          ? renderEmailRegisterForm()
-          : renderOAuthOptions()}
-        {renderWeChatLoginModal()}
-
-        {turnstileEnabled && (
-          <div className='flex justify-center mt-6'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
-            />
-          </div>
-        )}
-      </div>
+      <div className='w-full max-w-sm mt-[60px]'>{renderOIDCOnlyEntry()}</div>
     </div>
   );
 };

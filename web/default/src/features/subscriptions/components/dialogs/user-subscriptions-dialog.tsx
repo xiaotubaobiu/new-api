@@ -213,7 +213,7 @@ export function UserSubscriptionsDialog(props: Props) {
                     value: String(p.plan.id),
                     label: (
                       <>
-                        {p.plan.title}($
+                        {p.plan.title}(¥
                         {Number(p.plan.price_amount || 0).toFixed(2)})
                       </>
                     ),
@@ -229,7 +229,7 @@ export function UserSubscriptionsDialog(props: Props) {
                   <SelectGroup>
                     {plans.map((p) => (
                       <SelectItem key={p.plan.id} value={String(p.plan.id)}>
-                        {p.plan.title} ($
+                        {p.plan.title} (¥
                         {Number(p.plan.price_amount || 0).toFixed(2)})
                       </SelectItem>
                     ))}

@@ -160,7 +160,7 @@ func (r *GeneralOpenAIRequest) GetTokenCountMeta() *types.TokenCountMeta {
 						if img := m.GetImageMedia(); img != nil {
 							meta.Detail = img.Detail
 						}
-					case ContentTypeInputAudio:
+					case ContentTypeInputAudio, ContentTypeAudioURL:
 						meta.FileType = types.FileTypeAudio
 					case ContentTypeFile:
 						meta.FileType = types.FileTypeFile
@@ -292,6 +292,7 @@ type MediaContent struct {
 	Text       string `json:"text,omitempty"`
 	ImageUrl   any    `json:"image_url,omitempty"`
 	InputAudio any    `json:"input_audio,omitempty"`
+	AudioUrl   any    `json:"audio_url,omitempty"`
 	File       any    `json:"file,omitempty"`
 	VideoUrl   any    `json:"video_url,omitempty"`
 	// OpenRouter Params
@@ -350,11 +351,32 @@ func (m *MediaContent) GetFile() *MessageFile {
 
 func (m *MediaContent) GetVideoUrl() *MessageVideoUrl {
 	if m.VideoUrl != nil {
-		if _, ok := m.VideoUrl.(*MessageVideoUrl); ok {
-			return m.VideoUrl.(*MessageVideoUrl)
+		if video, ok := m.VideoUrl.(*MessageVideoUrl); ok {
+			return video
+		}
+		if video, ok := m.VideoUrl.(MessageVideoUrl); ok {
+			return &video
 		}
 		if itemMap, ok := m.VideoUrl.(map[string]any); ok {
 			out := &MessageVideoUrl{
+				Url: common.Interface2String(itemMap["url"]),
+			}
+			return out
+		}
+	}
+	return nil
+}
+
+func (m *MediaContent) GetAudioUrl() *MessageAudioUrl {
+	if m.AudioUrl != nil {
+		if audio, ok := m.AudioUrl.(*MessageAudioUrl); ok {
+			return audio
+		}
+		if audio, ok := m.AudioUrl.(MessageAudioUrl); ok {
+			return &audio
+		}
+		if itemMap, ok := m.AudioUrl.(map[string]any); ok {
+			out := &MessageAudioUrl{
 				Url: common.Interface2String(itemMap["url"]),
 			}
 			return out
@@ -381,6 +403,12 @@ func (m *MediaContent) ToFileSource() types.FileSource {
 			mimeType = "audio/" + audio.Format
 		}
 		return types.NewFileSourceFromData(audio.Data, mimeType)
+	case ContentTypeAudioURL:
+		audio := m.GetAudioUrl()
+		if audio == nil || audio.Url == "" {
+			return nil
+		}
+		return types.NewFileSourceFromData(audio.Url, "")
 	case ContentTypeFile:
 		file := m.GetFile()
 		if file == nil || file.FileData == "" {
@@ -422,13 +450,17 @@ type MessageVideoUrl struct {
 	Url string `json:"url"`
 }
 
+type MessageAudioUrl struct {
+	Url string `json:"url"`
+}
+
 const (
 	ContentTypeText       = "text"
 	ContentTypeImageURL   = "image_url"
 	ContentTypeInputAudio = "input_audio"
+	ContentTypeAudioURL   = "audio_url"
 	ContentTypeFile       = "file"
 	ContentTypeVideoUrl   = "video_url" // 阿里百炼视频识别
-	//ContentTypeAudioUrl   = "audio_url"
 )
 
 func (m *Message) GetReasoningContent() string {
@@ -534,6 +566,11 @@ func (m *Message) ParseContent() []MediaContent {
 		return contentList
 	}
 
+	if mediaContent, ok := m.Content.([]MediaContent); ok {
+		m.parsedContent = mediaContent
+		return mediaContent
+	}
+
 	// 尝试解析为数组
 	//var arrayContent []map[string]interface{}
 
@@ -605,6 +642,23 @@ func (m *Message) ParseContent() []MediaContent {
 					})
 				}
 			}
+		case ContentTypeAudioURL:
+			audioUrl := contentItem["audio_url"]
+			temp := &MessageAudioUrl{}
+			switch v := audioUrl.(type) {
+			case string:
+				temp.Url = v
+			case map[string]interface{}:
+				if url, ok := v["url"].(string); ok {
+					temp.Url = url
+				}
+			}
+			if temp.Url != "" {
+				contentList = append(contentList, MediaContent{
+					Type:     ContentTypeAudioURL,
+					AudioUrl: temp,
+				})
+			}
 		case ContentTypeFile:
 			if fileData, ok := contentItem["file"].(map[string]interface{}); ok {
 				fileId, ok3 := fileData["file_id"].(string)
@@ -630,12 +684,20 @@ func (m *Message) ParseContent() []MediaContent {
 				}
 			}
 		case ContentTypeVideoUrl:
-			if videoUrl, ok := contentItem["video_url"].(string); ok {
+			videoUrl := contentItem["video_url"]
+			temp := &MessageVideoUrl{}
+			switch v := videoUrl.(type) {
+			case string:
+				temp.Url = v
+			case map[string]interface{}:
+				if url, ok := v["url"].(string); ok {
+					temp.Url = url
+				}
+			}
+			if temp.Url != "" {
 				contentList = append(contentList, MediaContent{
 					Type: ContentTypeVideoUrl,
-					VideoUrl: &MessageVideoUrl{
-						Url: videoUrl,
-					},
+					VideoUrl: temp,
 				})
 			}
 		}

@@ -22,6 +22,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   API,
+  consumeOAuthCallbackRedirectTarget,
+  navigateToOAuthCallbackTarget,
   showError,
   showSuccess,
   updateAPI,
@@ -35,7 +37,7 @@ const OAuth2Callback = (props) => {
   const [searchParams] = useSearchParams();
   const [, userDispatch] = useContext(UserContext);
   const navigate = useNavigate();
-  
+
   // 防止 React 18 Strict Mode 下重复执行
   const hasExecuted = useRef(false);
 
@@ -65,7 +67,10 @@ const OAuth2Callback = (props) => {
         setUserData(data);
         updateAPI();
         showSuccess(t('登录成功！'));
-        navigate('/console/token');
+        navigateToOAuthCallbackTarget(
+          navigate,
+          consumeOAuthCallbackRedirectTarget(state),
+        );
       }
     } catch (error) {
       // 网络错误等可重试
@@ -77,7 +82,7 @@ const OAuth2Callback = (props) => {
 
       // 重试次数耗尽，提示错误并返回设置页面
       showError(error.message || t('授权失败'));
-      navigate('/console/personal');
+      navigate('/login');
     }
   };
 
@@ -94,7 +99,7 @@ const OAuth2Callback = (props) => {
     // 参数缺失直接返回
     if (!code) {
       showError(t('未获取到授权码'));
-      navigate('/console/personal');
+      navigate('/login');
       return;
     }
 

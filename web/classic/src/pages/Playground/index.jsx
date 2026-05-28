@@ -84,6 +84,30 @@ const Playground = () => {
   const styleState = { isMobile };
   const [searchParams] = useSearchParams();
 
+  const getLobeHubChatUrl = useCallback(() => {
+    const directValue = localStorage.getItem('lobehub_chat_url') || '';
+    if (directValue) {
+      return directValue;
+    }
+
+    try {
+      const statusData = JSON.parse(localStorage.getItem('status') || '{}');
+      return statusData.lobehub_chat_url || '';
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const lobehubChatUrl = getLobeHubChatUrl();
+
+  const handleOpenLobeHub = useCallback(() => {
+    if (!lobehubChatUrl) {
+      return;
+    }
+
+    window.open(lobehubChatUrl, '_blank', 'noopener,noreferrer');
+  }, [lobehubChatUrl]);
+
   const state = usePlaygroundState();
   const {
     inputs,
@@ -513,6 +537,8 @@ const Playground = () => {
                   onStopGenerator={onStopGenerator}
                   onClearMessages={handleClearMessages}
                   onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
+                  lobehubChatUrl={lobehubChatUrl}
+                  onOpenLobeHub={handleOpenLobeHub}
                   renderCustomChatContent={renderCustomChatContent}
                   renderChatBoxAction={renderChatBoxAction}
                 />

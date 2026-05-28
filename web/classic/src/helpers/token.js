@@ -49,9 +49,9 @@ export async function fetchTokenKeysBatch(tokenIds) {
 
 /**
  * 获取可用的 token keys
- * @returns {Promise<string[]>} 返回 active 状态的不带 sk- 前缀的真实 token key 数组
+ * @returns {Promise<{status: 'success' | 'no_enabled_tokens' | 'request_limited_or_failed', keys: string[], error?: string}>}
  */
-export async function fetchTokenKeys() {
+export async function fetchAvailableTokenKeys() {
   try {
     const response = await API.get('/api/token/?p=1&size=10');
     const { success, data } = response.data;
@@ -59,16 +59,54 @@ export async function fetchTokenKeys() {
 
     const tokenItems = Array.isArray(data) ? data : data.items || [];
     const activeTokens = tokenItems.filter((token) => token.status === 1);
-    const keyResults = await Promise.allSettled(
-      activeTokens.map((token) => fetchTokenKey(token.id)),
-    );
-    return keyResults
-      .filter((result) => result.status === 'fulfilled' && result.value)
-      .map((result) => result.value);
+
+    if (activeTokens.length === 0) {
+      return {
+        status: 'no_enabled_tokens',
+        keys: [],
+      };
+    }
+
+    let firstError = null;
+
+    for (const token of activeTokens) {
+      try {
+        const key = await fetchTokenKey(token.id);
+        if (key) {
+          return {
+            status: 'success',
+            keys: [key],
+          };
+        }
+      } catch (error) {
+        if (!firstError) {
+          firstError = error;
+        }
+      }
+    }
+
+    return {
+      status: 'request_limited_or_failed',
+      keys: [],
+      error: firstError?.message || 'Failed to fetch token key',
+    };
   } catch (error) {
     console.error('Error fetching token keys:', error);
-    return [];
+    return {
+      status: 'request_limited_or_failed',
+      keys: [],
+      error: error?.message || 'Failed to fetch token keys',
+    };
   }
+}
+
+/**
+ * 获取可用的 token keys
+ * @returns {Promise<string[]>} 返回 active 状态的不带 sk- 前缀的真实 token key 数组
+ */
+export async function fetchTokenKeys() {
+  const result = await fetchAvailableTokenKeys();
+  return result.status === 'success' ? result.keys : [];
 }
 
 /**
