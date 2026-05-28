@@ -33,16 +33,25 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { adjustUserQuota } from '../api'
+import { adjustUserQuota, batchAdjustUserQuota } from '../api'
 import type { QuotaAdjustMode } from '../types'
 
 interface UserQuotaDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  userId: number
-  currentQuota: number
+  userId?: number
+  currentQuota?: number
+  userIds?: number[]
   onSuccess: () => void
 }
+
+const QUOTA_MODES: QuotaAdjustMode[] = [
+  'add',
+  'subtract',
+  'override',
+  'multiply',
+  'divide',
+]
 
 export function UserQuotaDialog(props: UserQuotaDialogProps) {
   const { t } = useTranslation()
@@ -53,49 +62,126 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
   const { meta: currencyMeta } = getCurrencyDisplay()
   const currencyLabel = getCurrencyLabel()
   const tokensOnly = currencyMeta.kind === 'tokens'
+  const selectedUserIds = props.userIds ?? []
+  const isBatch = selectedUserIds.length > 0
+  const isFactorMode = mode === 'multiply' || mode === 'divide'
 
   const amountValue = parseFloat(amount) || 0
   const quotaValue = parseQuotaFromDollars(Math.abs(amountValue))
+  const factorValue = amountValue
+
+  const getModeLabel = (value: QuotaAdjustMode) => {
+    switch (value) {
+      case 'add':
+        return t('Add')
+      case 'subtract':
+        return t('Subtract')
+      case 'override':
+        return t('Override')
+      case 'multiply':
+        return t('Multiply')
+      case 'divide':
+        return t('Divide')
+      default:
+        return value
+    }
+  }
 
   const getPreviewText = () => {
-    const current = props.currentQuota
-    const val = quotaValue
+    if (isBatch) {
+      return t('Selected users will be updated in bulk', {
+        count: selectedUserIds.length,
+      })
+    }
+
+    const current = props.currentQuota ?? 0
     switch (mode) {
       case 'add':
-        return `${t('Current quota')}: ${formatQuota(current)}  +${formatQuota(val)} = ${formatQuota(current + val)}`
+        return `${t('Current quota')}: ${formatQuota(current)}  +${formatQuota(quotaValue)} = ${formatQuota(current + quotaValue)}`
       case 'subtract':
-        return `${t('Current quota')}: ${formatQuota(current)}  -${formatQuota(val)} = ${formatQuota(current - val)}`
+        return `${t('Current quota')}: ${formatQuota(current)}  -${formatQuota(quotaValue)} = ${formatQuota(current - quotaValue)}`
       case 'override': {
         const overrideQuota = parseQuotaFromDollars(amountValue)
-        return `${t('Current quota')}: ${formatQuota(current)} → ${formatQuota(overrideQuota)}`
+        return `${t('Current quota')}: ${formatQuota(current)} -> ${formatQuota(overrideQuota)}`
       }
+      case 'multiply':
+        return `${t('Current quota')}: ${formatQuota(current)} x ${factorValue || 0} = ${formatQuota(Math.round(current * factorValue))}`
+      case 'divide':
+        return `${t('Current quota')}: ${formatQuota(current)} / ${factorValue || 0} = ${
+          factorValue > 0 ? formatQuota(Math.round(current / factorValue)) : '-'
+        }`
       default:
         return ''
     }
   }
 
+  const resetForm = () => {
+    setAmount('')
+    setMode('add')
+  }
+
+  const getPayloadValue = () => {
+    if (isFactorMode) {
+      return { factor: factorValue }
+    }
+    const value =
+      mode === 'override' ? parseQuotaFromDollars(amountValue) : quotaValue
+    return { value: mode === 'override' ? value : Math.abs(value) }
+  }
+
+  const validateInput = () => {
+    if (isFactorMode) {
+      return factorValue > 0
+    }
+    if (mode === 'override') {
+      return amount !== ''
+    }
+    return Boolean(amount) && quotaValue > 0
+  }
+
   const handleConfirm = async () => {
-    if (!amount && mode !== 'override') return
-    if (quotaValue <= 0 && mode !== 'override') return
+    if (!validateInput()) return
 
     setLoading(true)
     try {
-      const value =
-        mode === 'override' ? parseQuotaFromDollars(amountValue) : quotaValue
-      const result = await adjustUserQuota({
-        id: props.userId,
-        action: 'add_quota',
-        mode,
-        value: mode === 'override' ? value : Math.abs(value),
-      })
-      if (result.success) {
-        toast.success(t('Quota adjusted successfully'))
-        setAmount('')
-        setMode('add')
-        props.onOpenChange(false)
-        props.onSuccess()
+      const payloadValue = getPayloadValue()
+      if (isBatch) {
+        const result = await batchAdjustUserQuota({
+          ids: selectedUserIds,
+          mode,
+          ...payloadValue,
+        })
+        if (result.success) {
+          if (result.data?.skipped_count) {
+            toast.success(
+              t('Quota adjusted successfully, skipped {{count}} users', {
+                count: result.data.skipped_count,
+              })
+            )
+          } else {
+            toast.success(t('Quota adjusted successfully'))
+          }
+          resetForm()
+          props.onOpenChange(false)
+          props.onSuccess()
+        } else {
+          toast.error(result.message || t('Failed to adjust quota'))
+        }
       } else {
-        toast.error(result.message || t('Failed to adjust quota'))
+        const result = await adjustUserQuota({
+          id: props.userId ?? 0,
+          action: 'add_quota',
+          mode,
+          ...payloadValue,
+        })
+        if (result.success) {
+          toast.success(t('Quota adjusted successfully'))
+          resetForm()
+          props.onOpenChange(false)
+          props.onSuccess()
+        } else {
+          toast.error(result.message || t('Failed to adjust quota'))
+        }
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : t('Failed to adjust quota'))
@@ -105,17 +191,25 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
   }
 
   const handleCancel = () => {
-    setAmount('')
-    setMode('add')
+    resetForm()
     props.onOpenChange(false)
   }
 
-  const placeholder = tokensOnly
-    ? t('Enter amount in tokens')
-    : t('Enter amount in {{currency}}', { currency: currencyLabel })
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm()
+    }
+    props.onOpenChange(open)
+  }
+
+  const placeholder = isFactorMode
+    ? t('Enter factor')
+    : tokensOnly
+      ? t('Enter amount in tokens')
+      : t('Enter amount in {{currency}}', { currency: currencyLabel })
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('Adjust Quota')}</DialogTitle>
@@ -130,27 +224,27 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
 
           <div className='space-y-2'>
             <Label>{t('Mode')}</Label>
-            <div className='flex gap-1'>
-              {(['add', 'subtract', 'override'] as const).map((m) => (
+            <div className='flex flex-wrap gap-1'>
+              {QUOTA_MODES.map((quotaMode) => (
                 <Button
-                  key={m}
+                  key={quotaMode}
                   type='button'
                   variant='outline'
                   size='sm'
                   className={cn(
-                    mode === m &&
+                    mode === quotaMode &&
                       'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
                   )}
                   onClick={() => {
-                    setMode(m)
-                    setAmount('')
+                    setMode(quotaMode)
+                    setAmount(
+                      quotaMode === 'multiply' || quotaMode === 'divide'
+                        ? '2'
+                        : ''
+                    )
                   }}
                 >
-                  {m === 'add'
-                    ? t('Add')
-                    : m === 'subtract'
-                      ? t('Subtract')
-                      : t('Override')}
+                  {getModeLabel(quotaMode)}
                 </Button>
               ))}
             </div>
@@ -158,12 +252,12 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
 
           <div className='space-y-2'>
             <Label>
-              {t('Amount')} ({currencyLabel})
+              {isFactorMode ? t('Factor') : `${t('Amount')} (${currencyLabel})`}
             </Label>
             <Input
               type='number'
-              step={tokensOnly ? 1 : 0.000001}
-              min={mode === 'override' ? undefined : 0}
+              step={isFactorMode ? 0.1 : tokensOnly ? 1 : 0.000001}
+              min={mode === 'override' && !isFactorMode ? undefined : 0}
               placeholder={placeholder}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
