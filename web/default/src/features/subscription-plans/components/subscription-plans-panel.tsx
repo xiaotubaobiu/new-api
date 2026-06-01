@@ -282,9 +282,11 @@ export function SubscriptionPlansPanel({
         contentClassName='space-y-4 sm:space-y-5'
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className='gap-4'>
-          <TabsList className='grid w-full grid-cols-2 items-stretch gap-1 rounded-xl p-1 group-data-horizontal/tabs:h-10'>
-            <TabsTrigger value='my'>{t('My Subscriptions')}</TabsTrigger>
-            <TabsTrigger value='purchase'>
+          <TabsList className='max-w-full flex-wrap justify-start gap-1 rounded-xl p-1 group-data-horizontal/tabs:h-auto sm:group-data-horizontal/tabs:h-10'>
+            <TabsTrigger value='my' className='px-3'>
+              {t('My Subscriptions')}
+            </TabsTrigger>
+            <TabsTrigger value='purchase' className='px-3'>
               {t('Purchase Subscription')}
             </TabsTrigger>
           </TabsList>
@@ -427,8 +429,8 @@ export function SubscriptionPlansPanel({
 
               {hasAny && (
                 <>
-                  <Separator className='my-3' />
-                  <div className='max-h-64 space-y-3 overflow-y-auto pr-1'>
+                  <Separator className='my-4' />
+                  <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
                     {allSubscriptions.map((sub) => {
                       const subscription = sub.subscription
                       const totalAmount = Number(
@@ -448,98 +450,187 @@ export function SubscriptionPlansPanel({
                       const isCancelled = subscription?.status === 'cancelled'
                       const isActive =
                         subscription?.status === 'active' && !isExpired
+                      const usageTone =
+                        usagePercent >= 90
+                          ? '[&_[data-slot=progress-indicator]]:bg-destructive'
+                          : usagePercent >= 70
+                            ? '[&_[data-slot=progress-indicator]]:bg-amber-500'
+                            : '[&_[data-slot=progress-indicator]]:bg-emerald-500'
+
+                      const statusBadge = isActive ? (
+                        <StatusBadge
+                          label={t('Active')}
+                          variant='success'
+                          copyable={false}
+                          className='shrink-0'
+                        />
+                      ) : isCancelled ? (
+                        <StatusBadge
+                          label={t('Cancelled')}
+                          variant='neutral'
+                          copyable={false}
+                          className='shrink-0'
+                        />
+                      ) : (
+                        <StatusBadge
+                          label={t('Expired')}
+                          variant='neutral'
+                          copyable={false}
+                          className='shrink-0'
+                        />
+                      )
 
                       return (
-                        <div
+                        <Card
                           key={subscription?.id}
-                          className='bg-background rounded-lg border p-3 text-xs'
-                        >
-                          <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
-                            <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                              <span className='min-w-0 truncate font-medium'>
-                                {planTitle
-                                  ? `${planTitle} / ${t('Subscription')} #${subscription?.id}`
-                                  : `${t('Subscription')} #${subscription?.id}`}
-                              </span>
-                              {isActive ? (
-                                <StatusBadge
-                                  label={t('Active')}
-                                  variant='success'
-                                  copyable={false}
-                                />
-                              ) : isCancelled ? (
-                                <StatusBadge
-                                  label={t('Cancelled')}
-                                  variant='neutral'
-                                  copyable={false}
-                                />
-                              ) : (
-                                <StatusBadge
-                                  label={t('Expired')}
-                                  variant='neutral'
-                                  copyable={false}
-                                />
-                              )}
-                            </div>
-                            {isActive && (
-                              <span className='text-muted-foreground shrink-0'>
-                                {t('{{count}} days remaining', {
-                                  count: remainDays,
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          <div className='text-muted-foreground mt-1.5'>
-                            {isActive
-                              ? t('Until')
-                              : isCancelled
-                                ? t('Cancelled at')
-                                : t('Expired at')}{' '}
-                            {new Date(
-                              (subscription?.end_time || 0) * 1000
-                            ).toLocaleString()}
-                          </div>
-                          {isActive &&
-                            (subscription?.next_reset_time ?? 0) > 0 && (
-                              <div className='text-muted-foreground mt-1'>
-                                {t('Next reset')}:{' '}
-                                {new Date(
-                                  subscription!.next_reset_time! * 1000
-                                ).toLocaleString()}
-                              </div>
-                            )}
-                          <div className='text-muted-foreground mt-1'>
-                            {t('Total Quota')}:{' '}
-                            {totalAmount > 0 ? (
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={<span className='cursor-help' />}
-                                >
-                                  {formatQuota(usedAmount)}/
-                                  {formatQuota(totalAmount)} / {t('Remaining')}{' '}
-                                  {formatQuota(remainAmount)}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {t('Raw Quota')}: {usedAmount}/{totalAmount} /{' '}
-                                  {t('Remaining')} {remainAmount}
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              t('Unlimited')
-                            )}
-                            {totalAmount > 0 && (
-                              <span className='ml-2'>
-                                {t('Used')} {usagePercent}%
-                              </span>
-                            )}
-                          </div>
-                          {totalAmount > 0 && isActive && (
-                            <Progress
-                              value={usagePercent}
-                              className='mt-2 h-1.5'
-                            />
+                          className={cn(
+                            'flex h-full transition-shadow hover:shadow-md',
+                            isActive && 'border-primary/50 shadow-sm'
                           )}
-                        </div>
+                        >
+                          <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
+                            <div className='flex min-h-12 items-start justify-between gap-3'>
+                              <div className='min-w-0'>
+                                <h4 className='truncate font-semibold'>
+                                  {planTitle || t('Subscription')}
+                                </h4>
+                                <p className='text-muted-foreground truncate text-xs'>
+                                  {t('Subscription')} #{subscription?.id}
+                                </p>
+                              </div>
+                              {statusBadge}
+                            </div>
+
+                            <div className='flex min-h-14 flex-col justify-center py-2'>
+                              {isActive ? (
+                                <span className='text-primary text-2xl font-bold'>
+                                  {t('{{count}} days remaining', {
+                                    count: remainDays,
+                                  })}
+                                </span>
+                              ) : (
+                                <span className='text-muted-foreground text-2xl font-bold'>
+                                  {isCancelled ? t('Cancelled') : t('Expired')}
+                                </span>
+                              )}
+                              <span className='text-muted-foreground mt-1 text-xs'>
+                                {isActive
+                                  ? t('Until')
+                                  : isCancelled
+                                    ? t('Cancelled at')
+                                    : t('Expired at')}{' '}
+                                {new Date(
+                                  (subscription?.end_time || 0) * 1000
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className='flex-1 space-y-2 pb-3 text-xs'>
+                              {isActive &&
+                                (subscription?.next_reset_time ?? 0) > 0 && (
+                                  <div className='text-muted-foreground flex items-center justify-between gap-3'>
+                                    <span>{t('Next reset')}</span>
+                                    <span className='text-foreground min-w-0 truncate text-right font-medium'>
+                                      {new Date(
+                                        subscription!.next_reset_time! * 1000
+                                      ).toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
+
+                              <div className='bg-muted/35 rounded-lg border p-3'>
+                                <div className='flex items-start justify-between gap-3'>
+                                  <div>
+                                    <div className='font-medium'>
+                                      {t('Total Quota')}
+                                    </div>
+                                    <div className='text-muted-foreground mt-0.5'>
+                                      {totalAmount > 0 ? (
+                                        <Tooltip>
+                                          <TooltipTrigger
+                                            render={
+                                              <span className='cursor-help' />
+                                            }
+                                          >
+                                            {formatQuota(totalAmount)}
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            {t('Raw Quota')}: {totalAmount}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      ) : (
+                                        t('Unlimited')
+                                      )}
+                                    </div>
+                                  </div>
+                                  {totalAmount > 0 && (
+                                    <span className='bg-background text-foreground rounded-md border px-2 py-1 text-xs font-semibold tabular-nums'>
+                                      {usagePercent}%
+                                    </span>
+                                  )}
+                                </div>
+
+                                {totalAmount > 0 ? (
+                                  <>
+                                    <Progress
+                                      value={usagePercent}
+                                      className={cn(
+                                        '[&_[data-slot=progress-track]]:bg-background mt-3 [&_[data-slot=progress-track]]:h-2',
+                                        usageTone,
+                                        !isActive &&
+                                          '[&_[data-slot=progress-indicator]]:bg-muted-foreground/50'
+                                      )}
+                                    />
+                                    <div className='mt-3 grid grid-cols-2 gap-2'>
+                                      <div className='bg-background/80 rounded-md border px-2.5 py-2'>
+                                        <div className='text-muted-foreground'>
+                                          {t('Used')}
+                                        </div>
+                                        <div className='text-foreground mt-1 truncate font-semibold'>
+                                          <Tooltip>
+                                            <TooltipTrigger
+                                              render={
+                                                <span className='cursor-help' />
+                                              }
+                                            >
+                                              {formatQuota(usedAmount)}
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              {t('Raw Quota')}: {usedAmount}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </div>
+                                      </div>
+                                      <div className='bg-background/80 rounded-md border px-2.5 py-2'>
+                                        <div className='text-muted-foreground'>
+                                          {t('Remaining')}
+                                        </div>
+                                        <div className='text-foreground mt-1 truncate font-semibold'>
+                                          <Tooltip>
+                                            <TooltipTrigger
+                                              render={
+                                                <span className='cursor-help' />
+                                              }
+                                            >
+                                              {formatQuota(remainAmount)}
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              {t('Raw Quota')}: {remainAmount}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className='text-muted-foreground bg-background/60 mt-3 rounded-md border border-dashed px-2.5 py-2'>
+                                    {t('Unlimited')}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )
                     })}
                   </div>
