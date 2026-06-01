@@ -65,6 +65,7 @@
     "| Based on": "| Basé sur",
     "0 means data is kept permanently": "0 signifie que les données sont conservées indéfiniment",
     "0 means unlimited": "0 signifie illimité",
+    "0 means unlimited. The value is converted to quota units when saved.": "0 signifie illimité. La valeur est convertie en unités de quota lors de l’enregistrement.",
     "1 Day": "1 jour",
     "1 day ago": "Il y a 1 jour",
     "1 hour": "1 heure",
@@ -3186,6 +3187,7 @@
     "Reasoning Effort": "Effort de raisonnement",
     "Receive Upstream Model Update Notifications": "Recevoir les notifications de mise à jour des modèles en amont",
     "Received": "Reçu",
+    "Received amount": "Montant reçu",
     "Recently launched models": "Modèles récemment lancés",
     "Recently launched models gaining traction": "Modèles récemment publiés et en forte progression",
     "Recharge": "Recharger",
@@ -4527,6 +4529,9 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Day Plans": "Forfaits jour",
+    "Week Plans": "Forfaits semaine",
+    "Month Plans": "Forfaits mois"
   }
 }

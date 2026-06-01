@@ -65,6 +65,7 @@
     "| Based on": "| Dựa trên",
     "0 means data is kept permanently": "0 nghĩa là dữ liệu được giữ vĩnh viễn",
     "0 means unlimited": "0 có nghĩa là không giới hạn",
+    "0 means unlimited. The value is converted to quota units when saved.": "0 nghĩa là không giới hạn. Giá trị sẽ được chuyển đổi sang đơn vị hạn mức khi lưu.",
     "1 Day": "1 ngày",
     "1 day ago": "1 ngày trước",
     "1 hour": "1 giờ",
@@ -3186,6 +3187,7 @@
     "Reasoning Effort": "Cường độ suy luận",
     "Receive Upstream Model Update Notifications": "Nhận thông báo cập nhật mô hình nguồn",
     "Received": "Đã nhận",
+    "Received amount": "Số lượng nhận được",
     "Recently launched models": "Các mô hình ra mắt gần đây",
     "Recently launched models gaining traction": "Mô hình mới phát hành đang được ưa chuộng",
     "Recharge": "Nạp lại",
@@ -4527,6 +4529,9 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Day Plans": "Gói ngày",
+    "Week Plans": "Gói tuần",
+    "Month Plans": "Gói tháng"
   }
 }
