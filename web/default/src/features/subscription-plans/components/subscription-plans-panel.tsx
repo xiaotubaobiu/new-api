@@ -110,14 +110,22 @@ function getBillingPreferenceLabel(
 }
 
 function formatPlanPrice(amount: number, currency: string): string {
+  const normalizedCurrency = currency || 'USD'
+  if (normalizedCurrency.toUpperCase() === 'USD') {
+    const formattedAmount = new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 2,
+    }).format(amount)
+    return `￥${formattedAmount}`
+  }
+
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: normalizedCurrency,
       maximumFractionDigits: 2,
     }).format(amount)
   } catch {
-    return `${currency || 'USD'} ${amount.toFixed(2)}`
+    return `${normalizedCurrency} ${amount.toFixed(2)}`
   }
 }
 
