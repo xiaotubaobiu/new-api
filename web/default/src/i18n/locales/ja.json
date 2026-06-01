@@ -65,6 +65,7 @@
     "| Based on": "| に基づく",
     "0 means data is kept permanently": "0 はデータを永続的に保持することを意味します",
     "0 means unlimited": "0は無制限を意味します",
+    "0 means unlimited. The value is converted to quota units when saved.": "0 は無制限を意味します。保存時に値はクォータ単位に変換されます。",
     "1 Day": "1日",
     "1 day ago": "1日前",
     "1 hour": "1 時間",
@@ -3186,6 +3187,7 @@
     "Reasoning Effort": "推論強度",
     "Receive Upstream Model Update Notifications": "アップストリームモデル更新通知を受け取る",
     "Received": "受信済み",
+    "Received amount": "受取額",
     "Recently launched models": "最近リリースされたモデル",
     "Recently launched models gaining traction": "最近リリースされ勢いのあるモデル",
     "Recharge": "チャージ",
@@ -4527,6 +4529,9 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Day Plans": "日プラン",
+    "Week Plans": "週プラン",
+    "Month Plans": "月プラン"
   }
 }

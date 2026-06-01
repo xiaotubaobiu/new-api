@@ -64,6 +64,7 @@ import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
   PlanRecord,
+  SubscriptionPlan,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
 import type { PaymentMethod, TopupInfo } from '@/features/wallet/types'
@@ -74,6 +75,15 @@ interface SubscriptionPlansPanelProps {
   userQuota?: number
   onPurchaseSuccess?: () => void | Promise<void>
 }
+
+type PurchasePeriod = 'day' | 'week' | 'month'
+type PurchasePeriodFilter = 'all' | PurchasePeriod
+
+const purchaseCardClassName =
+  'border-primary/15 bg-gradient-to-br from-primary/5 via-background to-muted/35 dark:from-primary/10 dark:via-background dark:to-muted/20'
+
+const purchaseBadgeClassName =
+  'border border-primary/20 bg-primary/10 text-primary'
 
 function getEpayMethods(payMethods: PaymentMethod[] = []): PaymentMethod[] {
   return payMethods.filter(
@@ -111,6 +121,109 @@ function formatPlanPrice(amount: number, currency: string): string {
   }
 }
 
+function getPlanPeriodFilter(
+  plan?: Partial<SubscriptionPlan>
+): PurchasePeriod | null {
+  const unit = plan?.duration_unit
+  const value = Number(plan?.duration_value || 0)
+
+  if (unit === 'month' && value === 1) return 'month'
+  if (unit === 'day' && value === 7) return 'week'
+  if (unit === 'day' && value === 1) return 'day'
+  if (unit === 'hour' && value === 24) return 'day'
+
+  if (unit === 'custom') {
+    const seconds = Number(plan?.custom_seconds || 0)
+    if (seconds === 86400) return 'day'
+    if (seconds === 7 * 86400) return 'week'
+  }
+
+  return null
+}
+
+function getPurchasePeriodLabel(
+  period: PurchasePeriod,
+  t: (key: string) => string
+) {
+  if (period === 'day') return t('Day Plans')
+  if (period === 'week') return t('Week Plans')
+  return t('Month Plans')
+}
+
+function getPlanDurationSeconds(plan?: Partial<SubscriptionPlan>): number {
+  const value = Number(plan?.duration_value || 0)
+
+  switch (plan?.duration_unit) {
+    case 'year':
+      return value * 365 * 86400
+    case 'month':
+      return value * 30 * 86400
+    case 'day':
+      return value * 86400
+    case 'hour':
+      return value * 3600
+    case 'custom':
+      return Number(plan?.custom_seconds || 0)
+    default:
+      return 0
+  }
+}
+
+function getQuotaResetMultiplier(plan?: Partial<SubscriptionPlan>): number {
+  const unit = plan?.duration_unit
+  const value = Number(plan?.duration_value || 0)
+  const period = plan?.quota_reset_period || 'never'
+
+  if (period === 'daily') {
+    if (unit === 'year') return Math.max(1, value * 365)
+    if (unit === 'month') return Math.max(1, value * 30)
+    if (unit === 'day') return Math.max(1, value)
+    if (unit === 'hour') return Math.max(1, Math.ceil(value / 24))
+    if (unit === 'custom') {
+      return Math.max(1, Math.ceil(Number(plan?.custom_seconds || 0) / 86400))
+    }
+    return 1
+  }
+
+  if (period === 'weekly') {
+    if (unit === 'year') return Math.max(1, Math.ceil((value * 365) / 7))
+    if (unit === 'month') return Math.max(1, Math.ceil((value * 30) / 7))
+    if (unit === 'day') return Math.max(1, Math.ceil(value / 7))
+    if (unit === 'hour') return Math.max(1, Math.ceil(value / (24 * 7)))
+    if (unit === 'custom') {
+      return Math.max(
+        1,
+        Math.ceil(Number(plan?.custom_seconds || 0) / (7 * 86400))
+      )
+    }
+    return 1
+  }
+
+  if (period === 'monthly') {
+    if (unit === 'year') return Math.max(1, value * 12)
+    if (unit === 'month') return Math.max(1, value)
+    if (unit === 'day') return Math.max(1, Math.ceil(value / 30))
+    if (unit === 'hour') return Math.max(1, Math.ceil(value / (24 * 30)))
+    if (unit === 'custom') {
+      return Math.max(
+        1,
+        Math.ceil(Number(plan?.custom_seconds || 0) / (30 * 86400))
+      )
+    }
+    return 1
+  }
+
+  if (period === 'custom') {
+    const durationSeconds = getPlanDurationSeconds(plan)
+    const customSeconds = Number(plan?.quota_reset_custom_seconds || 0)
+    if (durationSeconds > 0 && customSeconds > 0) {
+      return Math.max(1, Math.ceil(durationSeconds / customSeconds))
+    }
+  }
+
+  return 1
+}
+
 export function SubscriptionPlansPanel({
   topupInfo,
   onAvailabilityChange,
@@ -134,6 +247,8 @@ export function SubscriptionPlansPanel({
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
   const [activeTab, setActiveTab] = useState('my')
+  const [purchasePeriodFilter, setPurchasePeriodFilter] =
+    useState<PurchasePeriodFilter>('all')
 
   const enableStripe = !!topupInfo?.enable_stripe_topup
   const enableCreem = !!topupInfo?.enable_creem_topup
@@ -227,6 +342,54 @@ export function SubscriptionPlansPanel({
     return map
   }, [allSubscriptions])
 
+  const planPeriodCounts = useMemo(() => {
+    const counts: Record<PurchasePeriodFilter, number> = {
+      all: plans.length,
+      day: 0,
+      week: 0,
+      month: 0,
+    }
+    for (const record of plans) {
+      const period = getPlanPeriodFilter(record?.plan)
+      if (period) counts[period] += 1
+    }
+    return counts
+  }, [plans])
+
+  const purchasePeriodOptions = useMemo(() => {
+    const options: Array<{ value: PurchasePeriodFilter; label: string }> = [
+      { value: 'all', label: t('All') },
+      { value: 'day', label: t('Day Plans') },
+      { value: 'week', label: t('Week Plans') },
+      { value: 'month', label: t('Month Plans') },
+    ]
+    return options
+  }, [t])
+
+  const filteredPlans = useMemo(() => {
+    if (purchasePeriodFilter === 'all') return plans
+    return plans.filter(
+      (record) => getPlanPeriodFilter(record?.plan) === purchasePeriodFilter
+    )
+  }, [plans, purchasePeriodFilter])
+
+  useEffect(() => {
+    if (plans.length === 0 || planPeriodCounts[purchasePeriodFilter] > 0) {
+      return
+    }
+    const nextPeriod = purchasePeriodOptions.find(
+      (option) => planPeriodCounts[option.value] > 0
+    )?.value
+    if (nextPeriod) {
+      setPurchasePeriodFilter(nextPeriod)
+    }
+  }, [
+    plans.length,
+    planPeriodCounts,
+    purchasePeriodFilter,
+    purchasePeriodOptions,
+  ])
+
   useEffect(() => {
     onAvailabilityChange?.(isAvailable)
   }, [isAvailable, onAvailabilityChange])
@@ -292,46 +455,38 @@ export function SubscriptionPlansPanel({
           </TabsList>
 
           <TabsContent value='my' className='space-y-4'>
-            <div className='rounded-xl border p-3 sm:p-4'>
+            <div className='bg-background/60 rounded-xl border p-3 sm:p-4'>
               <div className='grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center'>
-                <div className='grid gap-2 sm:grid-cols-2'>
-                  <div className='bg-muted/40 rounded-lg p-3'>
-                    <div className='text-muted-foreground text-xs'>
-                      {t('Active')}
-                    </div>
-                    <div className='mt-1 flex items-center gap-2 text-sm font-semibold'>
-                      <span
-                        className={cn(
-                          'size-1.5 shrink-0 rounded-full',
-                          hasActive ? dotColorMap.success : dotColorMap.neutral
-                        )}
-                        aria-hidden='true'
-                      />
-                      {hasActive ? (
-                        <span className={cn(textColorMap.success)}>
-                          {activeSubscriptions.length} {t('active')}
-                        </span>
-                      ) : (
-                        <span className='text-muted-foreground'>
-                          {t('No Active')}
-                        </span>
+                <div className='flex min-w-0 flex-wrap items-center gap-2'>
+                  <div className='border-input bg-background flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium'>
+                    <span
+                      className={cn(
+                        'size-1.5 shrink-0 rounded-full',
+                        hasActive ? dotColorMap.success : dotColorMap.neutral
                       )}
-                    </div>
+                      aria-hidden='true'
+                    />
+                    {hasActive ? (
+                      <span className={cn(textColorMap.success)}>
+                        {activeSubscriptions.length} {t('active')}
+                      </span>
+                    ) : (
+                      <span className='text-muted-foreground'>
+                        {t('No Active')}
+                      </span>
+                    )}
                   </div>
-                  <div className='bg-muted/40 rounded-lg p-3'>
-                    <div className='text-muted-foreground text-xs'>
+                  <div className='border-input bg-background flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium'>
+                    <span className='text-muted-foreground'>
                       {t('My Subscriptions')}
-                    </div>
-                    <div className='mt-1 text-sm font-semibold'>
-                      {allSubscriptions.length}
-                      {allSubscriptions.length > activeSubscriptions.length && (
-                        <span className='text-muted-foreground ml-2 text-xs font-medium'>
-                          /{' '}
-                          {allSubscriptions.length - activeSubscriptions.length}{' '}
-                          {t('expired')}
-                        </span>
-                      )}
-                    </div>
+                    </span>
+                    <span>{allSubscriptions.length}</span>
+                    {allSubscriptions.length > activeSubscriptions.length && (
+                      <span className='text-muted-foreground'>
+                        / {allSubscriptions.length - activeSubscriptions.length}{' '}
+                        {t('expired')}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className='flex w-full items-center gap-2 lg:w-auto'>
@@ -662,138 +817,190 @@ export function SubscriptionPlansPanel({
               )}
             </div>
           </TabsContent>
-
           <TabsContent value='purchase' className='space-y-4'>
             {plans.length > 0 ? (
-              <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
-                {plans.map((p, index) => {
-                  const plan = p?.plan
-                  if (!plan) return null
-                  const totalAmount = Number(plan.total_amount || 0)
-                  const price = formatPlanPrice(
-                    Number(plan.price_amount || 0),
-                    plan.currency || 'USD'
-                  )
-                  const isPopular = index === 0 && plans.length > 1
-                  const limit = Number(plan.max_purchase_per_user || 0)
-                  const count = planPurchaseCountMap.get(plan.id) || 0
-                  const reached = limit > 0 && count >= limit
-
-                  const resetLabel = formatResetPeriod(plan, t)
-                  const hasReset = resetLabel !== t('No Reset')
-                  const resetMultiplier = hasReset
-                    ? plan.quota_reset_period === 'daily'
-                      ? 30
-                      : plan.quota_reset_period === 'weekly'
-                        ? 4
-                        : plan.quota_reset_period === 'monthly'
-                          ? 1
-                          : 1
-                    : 1
-                  const totalQuotaDisplay = hasReset
-                    ? totalAmount * resetMultiplier
-                    : totalAmount
-
-                  const benefits = [
-                    `${t('Validity Period')}: ${formatDuration(plan, t)}`,
-                    totalQuotaDisplay > 0
-                      ? `${t('Total Quota')}: ${formatQuota(totalQuotaDisplay)}`
-                      : `${t('Total Quota')}: ${t('Unlimited')}`,
-                    hasReset
-                      ? `${resetLabel} ${t('Quota')}: ${formatQuota(totalAmount)}`
-                      : null,
-                    limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
-                    plan.upgrade_group
-                      ? `${t('Upgrade Group')}: ${plan.upgrade_group}`
-                      : null,
-                  ].filter(Boolean) as string[]
-
-                  return (
-                    <Card
-                      key={plan.id}
-                      className={cn(
-                        'flex h-full transition-shadow hover:shadow-md',
-                        isPopular && 'border-primary/70 shadow-sm'
-                      )}
-                    >
-                      <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
-                        <div className='flex min-h-12 items-start justify-between gap-3'>
-                          <div className='min-w-0'>
-                            <h4 className='truncate font-semibold'>
-                              {plan.title || t('Subscription Plans')}
-                            </h4>
-                            {plan.subtitle && (
-                              <p className='text-muted-foreground truncate text-xs'>
-                                {plan.subtitle}
-                              </p>
-                            )}
-                          </div>
-                          {isPopular && (
-                            <StatusBadge
-                              variant='info'
-                              copyable={false}
-                              className='shrink-0'
-                            >
-                              <Sparkles className='h-3 w-3' />
-                              {t('Recommended')}
-                            </StatusBadge>
-                          )}
-                        </div>
-
-                        <div className='flex min-h-14 items-center py-2'>
-                          <span className='text-primary text-2xl font-bold'>
-                            {price}
-                          </span>
-                        </div>
-
-                        <div className='flex-1 space-y-1.5 pb-3'>
-                          {benefits.map((label) => (
-                            <div
-                              key={label}
-                              className='text-muted-foreground flex items-center gap-2 text-xs'
-                            >
-                              <Check className='text-primary h-3 w-3 shrink-0' />
-                              <span>{label}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <Separator className='mb-3' />
-
-                        {reached ? (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={<div className='mt-auto' />}
-                            >
-                              <Button
-                                variant='outline'
-                                className='w-full'
-                                disabled
-                              >
-                                {t('Limit Reached')}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {t('Purchase limit reached')} ({count}/{limit})
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <Button
-                            variant='outline'
-                            className='mt-auto w-full'
-                            onClick={() => {
-                              setSelectedPlan(p)
-                              setPurchaseOpen(true)
-                            }}
-                          >
-                            {t('Subscribe Now')}
-                          </Button>
+              <>
+                <div className='flex flex-wrap items-center gap-2'>
+                  {purchasePeriodOptions.map((option) => {
+                    const active = purchasePeriodFilter === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type='button'
+                        aria-pressed={active}
+                        onClick={() => setPurchasePeriodFilter(option.value)}
+                        className={cn(
+                          'border-input bg-background hover:bg-accent hover:text-accent-foreground flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors',
+                          active &&
+                            'border-primary/40 bg-primary/10 text-primary shadow-sm'
                         )}
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
+                      >
+                        <span>{option.label}</span>
+                        <span
+                          className={cn(
+                            'rounded-full px-1.5 py-0.5 text-[11px] leading-none',
+                            active
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {planPeriodCounts[option.value]}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {filteredPlans.length > 0 ? (
+                  <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
+                    {filteredPlans.map((p) => {
+                      const plan = p?.plan
+                      if (!plan) return null
+                      const totalAmount = Number(plan.total_amount || 0)
+                      const price = formatPlanPrice(
+                        Number(plan.price_amount || 0),
+                        plan.currency || 'USD'
+                      )
+                      const isPopular =
+                        plans.findIndex(
+                          (record) => record?.plan?.id === plan.id
+                        ) === 0 && plans.length > 1
+                      const limit = Number(plan.max_purchase_per_user || 0)
+                      const count = planPurchaseCountMap.get(plan.id) || 0
+                      const reached = limit > 0 && count >= limit
+
+                      const resetLabel = formatResetPeriod(plan, t)
+                      const hasReset = resetLabel !== t('No Reset')
+                      const resetMultiplier = hasReset
+                        ? getQuotaResetMultiplier(plan)
+                        : 1
+                      const totalQuotaDisplay = hasReset
+                        ? totalAmount * resetMultiplier
+                        : totalAmount
+
+                      const benefits = [
+                        `${t('Validity Period')}: ${formatDuration(plan, t)}`,
+                        totalQuotaDisplay > 0
+                          ? `${t('Total Quota')}: ${formatQuota(totalQuotaDisplay)}`
+                          : `${t('Total Quota')}: ${t('Unlimited')}`,
+                        hasReset
+                          ? `${resetLabel} ${t('Quota')}: ${formatQuota(totalAmount)}`
+                          : null,
+                        limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
+                        plan.upgrade_group
+                          ? `${t('Upgrade Group')}: ${plan.upgrade_group}`
+                          : null,
+                      ].filter(Boolean) as string[]
+                      const planPeriod = getPlanPeriodFilter(plan)
+                      const periodBadgeLabel = planPeriod
+                        ? getPurchasePeriodLabel(planPeriod, t)
+                        : t('Subscription Plans')
+
+                      return (
+                        <Card
+                          key={plan.id}
+                          className={cn(
+                            'flex h-full transition-shadow hover:shadow-md',
+                            purchaseCardClassName,
+                            isPopular && 'border-primary/70 shadow-sm'
+                          )}
+                        >
+                          <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
+                            <div className='flex min-h-12 items-start justify-between gap-3'>
+                              <div className='min-w-0'>
+                                <h4 className='truncate font-semibold'>
+                                  {plan.title || t('Subscription Plans')}
+                                </h4>
+                                {plan.subtitle && (
+                                  <p className='text-muted-foreground truncate text-xs'>
+                                    {plan.subtitle}
+                                  </p>
+                                )}
+                              </div>
+                              <div className='flex shrink-0 flex-col items-end gap-1'>
+                                <StatusBadge
+                                  label={periodBadgeLabel}
+                                  variant='neutral'
+                                  copyable={false}
+                                  showDot={false}
+                                  className={cn(
+                                    'shrink-0',
+                                    purchaseBadgeClassName
+                                  )}
+                                />
+                                {isPopular && (
+                                  <StatusBadge
+                                    variant='info'
+                                    copyable={false}
+                                    className='shrink-0'
+                                  >
+                                    <Sparkles className='h-3 w-3' />
+                                    {t('Recommended')}
+                                  </StatusBadge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className='flex min-h-14 items-center py-2'>
+                              <span className='text-primary text-2xl font-bold'>
+                                {price}
+                              </span>
+                            </div>
+
+                            <div className='flex-1 space-y-1.5 pb-3'>
+                              {benefits.map((label) => (
+                                <div
+                                  key={label}
+                                  className='text-muted-foreground flex items-center gap-2 text-xs'
+                                >
+                                  <Check className='text-primary h-3 w-3 shrink-0' />
+                                  <span>{label}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <Separator className='mb-3' />
+
+                            {reached ? (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={<div className='mt-auto' />}
+                                >
+                                  <Button
+                                    variant='outline'
+                                    className='w-full'
+                                    disabled
+                                  >
+                                    {t('Limit Reached')}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('Purchase limit reached')} ({count}/{limit}
+                                  )
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Button
+                                className='bg-primary text-primary-foreground hover:bg-primary/90 mt-auto w-full shadow-sm'
+                                onClick={() => {
+                                  setSelectedPlan(p)
+                                  setPurchaseOpen(true)
+                                }}
+                              >
+                                {t('Subscribe Now')}
+                              </Button>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className='text-muted-foreground rounded-xl border border-dashed py-8 text-center text-sm'>
+                    {t('No plans available')}
+                  </p>
+                )}
+              </>
             ) : (
               <p className='text-muted-foreground py-4 text-center text-sm'>
                 {t('No plans available')}

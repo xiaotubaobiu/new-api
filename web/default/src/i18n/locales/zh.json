@@ -65,6 +65,7 @@
     "| Based on": "| 基于",
     "0 means data is kept permanently": "0 表示永久保留数据",
     "0 means unlimited": "0 表示不限",
+    "0 means unlimited. The value is converted to quota units when saved.": "0 表示不限。保存时该值会转换为额度单位。",
     "1 Day": "1 天",
     "1 day ago": "1 天前",
     "1 hour": "1 小时",
@@ -3186,6 +3187,7 @@
     "Reasoning Effort": "推理强度",
     "Receive Upstream Model Update Notifications": "接收上游模型更新通知",
     "Received": "获得",
+    "Received amount": "到账额度",
     "Recently launched models": "近期发布的模型",
     "Recently launched models gaining traction": "近期发布并快速增长的模型",
     "Recharge": "充值",
@@ -4527,6 +4529,9 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Day Plans": "天套餐",
+    "Week Plans": "周套餐",
+    "Month Plans": "月套餐"
   }
 }

@@ -65,6 +65,7 @@
     "| Based on": "| На основе",
     "0 means data is kept permanently": "0 означает, что данные хранятся постоянно",
     "0 means unlimited": "0 означает без ограничений",
+    "0 means unlimited. The value is converted to quota units when saved.": "0 означает без ограничений. При сохранении значение преобразуется в единицы квоты.",
     "1 Day": "1 день",
     "1 day ago": "1 день назад",
     "1 hour": "1 час",
@@ -3186,6 +3187,7 @@
     "Reasoning Effort": "Интенсивность рассуждения",
     "Receive Upstream Model Update Notifications": "Получать уведомления об обновлениях вышестоящих моделей",
     "Received": "Получено",
+    "Received amount": "Получаемый объем",
     "Recently launched models": "Недавно запущенные модели",
     "Recently launched models gaining traction": "Недавно вышедшие модели, набирающие популярность",
     "Recharge": "Пополнение",
@@ -4527,6 +4529,9 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Day Plans": "Дневные планы",
+    "Week Plans": "Недельные планы",
+    "Month Plans": "Месячные планы"
   }
 }
